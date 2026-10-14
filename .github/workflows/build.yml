@@ -1,0 +1,35 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        shell: pwsh
+        run: ./scripts/build.ps1
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory dist | Out-Null
+          Copy-Item build/ClaudeUsageMonitor.exe, build/claude-usage.exe, README.md, LICENSE dist/
+          Compress-Archive dist/* ClaudeUsageMonitor-x64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ClaudeUsageMonitor-x64
+          path: ClaudeUsageMonitor-x64.zip
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            build/ClaudeUsageMonitor.exe
+            ClaudeUsageMonitor-x64.zip

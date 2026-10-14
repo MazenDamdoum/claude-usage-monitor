@@ -1,0 +1,188 @@
+#include <windows.h>
+#include <commctrl.h>
+#include "../src/resource.h"
+#include "../src/version.h"
+
+IDI_APP ICON "app.ico"
+1 24 "app.manifest"
+
+#define CHECK(text, id, x, y, w) CONTROL text, id, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, x, y, w, 10
+#define SWATCH(id, x, y) CONTROL "", id, "Button", BS_OWNERDRAW | WS_TABSTOP, x, y, 28, 13
+#define SPIN(id) CONTROL "", id, UPDOWN_CLASS, UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_NOTHOUSANDS, 0, 0, 0, 0
+
+/////////////////////////////////////////////////////////////////////////////
+// Options: Main Window Settings
+
+IDD_PAGE_MAIN DIALOGEX 0, 0, 290, 238
+STYLE DS_SETFONT | DS_SHELLFONT | WS_CHILD | WS_CAPTION
+CAPTION "Main Window Settings"
+FONT 9, "Segoe UI", 400, 0, 0x1
+BEGIN
+    GROUPBOX        "Color and Font", -1, 7, 7, 276, 78
+    LTEXT           "Font:", -1, 15, 22, 24, 8
+    EDITTEXT        IDC_FONT_NAME, 42, 20, 92, 13, ES_AUTOHSCROLL | ES_READONLY | NOT WS_TABSTOP
+    LTEXT           "Font size:", -1, 141, 22, 34, 8
+    EDITTEXT        IDC_FONT_SIZE, 177, 20, 32, 13, ES_NUMBER
+    SPIN(IDC_FONT_SPIN)
+    PUSHBUTTON      "Choose Font...", IDC_FONT_BTN, 216, 19, 60, 15
+    LTEXT           "Label color:", -1, 15, 43, 40, 8
+    SWATCH(IDC_LABEL_COLOR, 58, 41)
+    LTEXT           "Value color:", -1, 98, 43, 40, 8
+    SWATCH(IDC_VALUE_COLOR, 140, 41)
+    LTEXT           "Bar color:", -1, 180, 43, 34, 8
+    SWATCH(IDC_BAR_COLOR, 216, 41)
+    PUSHBUTTON      "Preset", IDC_PRESET, 248, 40, 28, 15
+    LTEXT           "Background:", -1, 15, 64, 42, 8
+    SWATCH(IDC_BG_COLOR, 58, 62)
+    LTEXT           "Opacity:", -1, 98, 64, 30, 8
+    EDITTEXT        IDC_OPACITY, 140, 62, 32, 13, ES_NUMBER
+    SPIN(IDC_OPACITY_SPIN)
+    LTEXT           "%", -1, 176, 64, 10, 8
+
+    GROUPBOX        "Display Settings", -1, 7, 91, 276, 74
+    PUSHBUTTON      "Display Items...", IDC_ITEMS_BTN, 15, 104, 72, 15
+    CHECK("Show reset countdown", IDC_SHOW_RESET, 15, 125, 125)
+    CHECK("Show usage bars", IDC_SHOW_BARS, 15, 138, 125)
+    CHECK("Show mouse tooltip", IDC_TOOLTIP, 15, 151, 125)
+    CHECK("Separate value and unit with space", IDC_SPACE, 148, 125, 132)
+    CHECK("Don't show percent", IDC_HIDE_PERCENT, 148, 138, 132)
+
+    GROUPBOX        "Window", -1, 7, 171, 276, 60
+    CHECK("Always on top", IDC_TOPMOST, 15, 185, 125)
+    CHECK("Mouse penetrate", IDC_CLICK_THROUGH, 148, 185, 132)
+    CHECK("Lock window position", IDC_LOCK, 15, 198, 125)
+    CHECK("Allow out of screen boundaries", IDC_OFFSCREEN, 148, 198, 132)
+    LTEXT           "With mouse penetrate on, use the tray icon to open the menu.", -1, 15, 215, 262, 8
+END
+
+/////////////////////////////////////////////////////////////////////////////
+// Options: Taskbar Window Settings
+
+IDD_PAGE_TASKBAR DIALOGEX 0, 0, 290, 238
+STYLE DS_SETFONT | DS_SHELLFONT | WS_CHILD | WS_CAPTION
+CAPTION "Taskbar Window Settings"
+FONT 9, "Segoe UI", 400, 0, 0x1
+BEGIN
+    GROUPBOX        "Color and Font", -1, 7, 7, 276, 92
+    LTEXT           "Font:", -1, 15, 22, 24, 8
+    EDITTEXT        IDC_FONT_NAME, 42, 20, 92, 13, ES_AUTOHSCROLL | ES_READONLY | NOT WS_TABSTOP
+    LTEXT           "Font size:", -1, 141, 22, 34, 8
+    EDITTEXT        IDC_FONT_SIZE, 177, 20, 32, 13, ES_NUMBER
+    SPIN(IDC_FONT_SPIN)
+    PUSHBUTTON      "Choose Font...", IDC_FONT_BTN, 216, 19, 60, 15
+    LTEXT           "Label color:", -1, 15, 43, 40, 8
+    SWATCH(IDC_LABEL_COLOR, 58, 41)
+    LTEXT           "Value color:", -1, 98, 43, 40, 8
+    SWATCH(IDC_VALUE_COLOR, 140, 41)
+    LTEXT           "Bar color:", -1, 180, 43, 34, 8
+    SWATCH(IDC_BAR_COLOR, 216, 41)
+    PUSHBUTTON      "Preset", IDC_PRESET, 248, 40, 28, 15
+    LTEXT           "Background:", -1, 15, 64, 42, 8
+    SWATCH(IDC_BG_COLOR, 58, 62)
+    CHECK("Background transparent", IDC_TRANSPARENT, 98, 64, 150)
+    CHECK("Auto adapt text color to dark/light taskbar", IDC_AUTO_COLORS, 15, 82, 262)
+
+    GROUPBOX        "Display Settings", -1, 7, 105, 276, 84
+    PUSHBUTTON      "Display Items...", IDC_ITEMS_BTN, 15, 118, 72, 15
+    CHECK("Show reset countdown", IDC_SHOW_RESET, 15, 139, 125)
+    CHECK("Show usage bars", IDC_SHOW_BARS, 15, 152, 125)
+    CHECK("Align values to the right", IDC_RIGHT_ALIGN, 15, 165, 125)
+    CHECK("Horizontal arrange", IDC_HORIZONTAL, 15, 178, 125)
+    CHECK("Separate value and unit with space", IDC_SPACE, 148, 139, 132)
+    CHECK("Don't show percent", IDC_HIDE_PERCENT, 148, 152, 132)
+    CHECK("Show mouse tooltip", IDC_TOOLTIP, 148, 165, 132)
+
+    GROUPBOX        "Position", -1, 7, 195, 276, 34
+    LTEXT           "Horizontal offset:", -1, 15, 211, 60, 8
+    EDITTEXT        IDC_OFFSET, 78, 209, 40, 13
+    SPIN(IDC_OFFSET_SPIN)
+    LTEXT           "pixels (negative moves it left)", -1, 124, 211, 150, 8
+END
+
+/////////////////////////////////////////////////////////////////////////////
+// Options: General Settings
+
+IDD_PAGE_GENERAL DIALOGEX 0, 0, 290, 238
+STYLE DS_SETFONT | DS_SHELLFONT | WS_CHILD | WS_CAPTION
+CAPTION "General Settings"
+FONT 9, "Segoe UI", 400, 0, 0x1
+BEGIN
+    GROUPBOX        "Startup", -1, 7, 7, 276, 30
+    CHECK("Start with Windows", IDC_STARTUP, 15, 20, 200)
+
+    GROUPBOX        "Claude Account", -1, 7, 43, 276, 72
+    LTEXT           "Check usage every", -1, 15, 59, 64, 8
+    EDITTEXT        IDC_POLL, 80, 57, 40, 13, ES_NUMBER
+    SPIN(IDC_POLL_SPIN)
+    LTEXT           "seconds (60 - 3600)", -1, 126, 59, 100, 8
+    LTEXT           "Login file:", -1, 15, 80, 36, 8
+    EDITTEXT        IDC_CRED, 54, 78, 166, 13, ES_AUTOHSCROLL
+    PUSHBUTTON      "Browse...", IDC_CRED_BROWSE, 224, 77, 52, 15
+    LTEXT           "Leave empty to use the login Claude Code saved on this PC.", -1, 54, 96, 222, 8
+
+    GROUPBOX        "Alerts", -1, 7, 121, 276, 66
+    LTEXT           "Warning at", -1, 15, 137, 38, 8
+    EDITTEXT        IDC_WARN, 56, 135, 34, 13, ES_NUMBER
+    SPIN(IDC_WARN_SPIN)
+    LTEXT           "%", -1, 94, 137, 10, 8
+    LTEXT           "Critical at", -1, 120, 137, 36, 8
+    EDITTEXT        IDC_CRIT, 158, 135, 34, 13, ES_NUMBER
+    SPIN(IDC_CRIT_SPIN)
+    LTEXT           "%", -1, 196, 137, 10, 8
+    CHECK("Show a notification when a limit reaches these levels", IDC_NOTIFY, 15, 155, 262)
+    LTEXT           "Values turn amber at the warning level and red at the critical level.", -1, 15, 170, 262, 8
+
+    GROUPBOX        "Notification Area", -1, 7, 193, 276, 30
+    CHECK("Show notification area (tray) icon", IDC_TRAY, 15, 206, 200)
+END
+
+/////////////////////////////////////////////////////////////////////////////
+// Display items
+
+IDD_DISPLAY_ITEMS DIALOGEX 0, 0, 230, 146
+STYLE DS_SETFONT | DS_SHELLFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Display Items"
+FONT 9, "Segoe UI", 400, 0, 0x1
+BEGIN
+    LTEXT           "Choose what to show and the label for each item.", -1, 10, 8, 210, 8
+    LTEXT           "Item", -1, 12, 24, 60, 8
+    LTEXT           "Label text", -1, 112, 24, 60, 8
+    CHECK("Session (5h)", IDC_DI_SHOW0 + 0, 12, 38, 96)
+    EDITTEXT        IDC_DI_LABEL0 + 0, 112, 36, 106, 13, ES_AUTOHSCROLL
+    CHECK("Weekly (7d)", IDC_DI_SHOW0 + 1, 12, 56, 96)
+    EDITTEXT        IDC_DI_LABEL0 + 1, 112, 54, 106, 13, ES_AUTOHSCROLL
+    CHECK("Weekly Sonnet", IDC_DI_SHOW0 + 2, 12, 74, 96)
+    EDITTEXT        IDC_DI_LABEL0 + 2, 112, 72, 106, 13, ES_AUTOHSCROLL
+    CHECK("Weekly Opus", IDC_DI_SHOW0 + 3, 12, 92, 96)
+    EDITTEXT        IDC_DI_LABEL0 + 3, 112, 90, 106, 13, ES_AUTOHSCROLL
+    PUSHBUTTON      "Restore Defaults", IDC_DI_DEFAULTS, 10, 122, 66, 15
+    DEFPUSHBUTTON   "OK", IDOK, 118, 122, 50, 15
+    PUSHBUTTON      "Cancel", IDCANCEL, 172, 122, 50, 15
+END
+
+/////////////////////////////////////////////////////////////////////////////
+// Version
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION CUM_VERSION_MAJOR, CUM_VERSION_MINOR, CUM_VERSION_PATCH, 0
+PRODUCTVERSION CUM_VERSION_MAJOR, CUM_VERSION_MINOR, CUM_VERSION_PATCH, 0
+FILEOS VOS_NT_WINDOWS32
+FILETYPE VFT_APP
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904B0"
+        BEGIN
+            VALUE "FileDescription", "Claude Usage Monitor"
+            VALUE "ProductName", "Claude Usage Monitor"
+            VALUE "FileVersion", "1.1.0"
+            VALUE "ProductVersion", "1.1.0"
+            VALUE "OriginalFilename", "ClaudeUsageMonitor.exe"
+            VALUE "LegalCopyright", "MIT License"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0409, 1200
+    END
+END

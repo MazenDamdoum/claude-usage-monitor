@@ -1,0 +1,56 @@
+#pragma once
+
+#define IDI_APP 1
+
+#define IDD_PAGE_MAIN 101
+#define IDD_PAGE_TASKBAR 102
+#define IDD_PAGE_GENERAL 103
+#define IDD_DISPLAY_ITEMS 104
+
+// Main window / taskbar window pages (same IDs, separate dialogs)
+#define IDC_FONT_NAME 1001
+#define IDC_FONT_SIZE 1002
+#define IDC_FONT_SPIN 1003
+#define IDC_FONT_BTN 1004
+#define IDC_LABEL_COLOR 1005
+#define IDC_VALUE_COLOR 1006
+#define IDC_BAR_COLOR 1007
+#define IDC_BG_COLOR 1008
+#define IDC_TRANSPARENT 1009
+#define IDC_AUTO_COLORS 1010
+#define IDC_ITEMS_BTN 1011
+#define IDC_SHOW_RESET 1012
+#define IDC_SHOW_BARS 1013
+#define IDC_RIGHT_ALIGN 1014
+#define IDC_HORIZONTAL 1015
+#define IDC_SPACE 1016
+#define IDC_HIDE_PERCENT 1017
+#define IDC_TOOLTIP 1018
+#define IDC_OFFSET 1019
+#define IDC_OFFSET_SPIN 1020
+#define IDC_OPACITY 1021
+#define IDC_OPACITY_SPIN 1022
+#define IDC_TOPMOST 1023
+#define IDC_CLICK_THROUGH 1024
+#define IDC_LOCK 1025
+#define IDC_OFFSCREEN 1026
+#define IDC_PRESET 1027
+
+// General page
+#define IDC_STARTUP 1040
+#define IDC_POLL 1041
+#define IDC_POLL_SPIN 1042
+#define IDC_CRED 1043
+#define IDC_CRED_BROWSE 1044
+#define IDC_WARN 1045
+#define IDC_WARN_SPIN 1046
+#define IDC_CRIT 1047
+#define IDC_CRIT_SPIN 1048
+#define IDC_NOTIFY 1049
+#define IDC_TRAY 1050
+
+// Display items dialog: IDC_DI_SHOW0 + item, IDC_DI_LABEL0 + item
+#define IDC_DI_SHOW0 1060
+#define IDC_DI_LABEL0 1070
+#define IDC_DI_DEFAULTS 1080
+

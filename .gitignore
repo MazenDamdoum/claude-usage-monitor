@@ -1,0 +1,6 @@
+build/
+build-*/
+.tools/
+*.zip
+# local TrafficMonitor copy kept next to the repo for reference
+/TrafficMonitor/
