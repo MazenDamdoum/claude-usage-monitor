@@ -66,7 +66,7 @@ Then:
 ## Several accounts (claude-swap)
 
 With more than one account, your phone shows a tab per account (the one in use in orange) and
-tells you when **any** account's 5-hour or weekly limit resets: "huey: 5-hour limit reset".
+tells you when **any** account's 5-hour or weekly limit resets: "alice: 5-hour limit reset".
 
 ### Switching without stopping
 
@@ -97,7 +97,7 @@ person). The lower of your cap and the owner's applies, and the Windows app keep
 ### Heads-up for the owner
 
 When the account in use is down to **15% left**, the owner of the account the app would switch to
-next is told "Mazen may switch to your Claude account soon". On an account's tab, **Let huey know
+next is told "Sam may switch to your Claude account soon". On an account's tab, **Let alice know
 I'm about to use it** sends the same kind of heads-up whenever you like.
 
 ### Prompts left
@@ -119,9 +119,9 @@ errs on the low side. Only the resulting percentages go to the cloud, never the 
 
 1. **Sign in to their account once** in Claude Code (`/login`). The Windows app saves it to
    claude-swap by itself and it appears on the taskbar.
-2. **Name it:** right-click the taskbar readout → Rename → their account → e.g. `spud`.
-3. **Send them their link:** right-click the taskbar readout → **Phone link** → **For spud's owner**
-   copies a one-time link to paste to them (or run `.\pair.ps1 -Owner spud`).
+2. **Name it:** right-click the taskbar readout → Rename → their account → e.g. `dave`.
+3. **Send them their link:** right-click the taskbar readout → **Phone link** → **For dave's owner**
+   copies a one-time link to paste to them (or run `.\pair.ps1 -Owner dave`).
    [FRIENDS.md](FRIENDS.md) explains the app from their side.
 
 To remove an account from the PC: right-click → **Remove**. The plain-language
@@ -133,7 +133,7 @@ To unpair someone's phone (or a duplicate install), run `.\status.ps1`, copy the
 If you use a friend's Claude account through claude-swap, they can follow it from their own iPhone:
 
 ```powershell
-.\pair.ps1 -Owner huey    # huey = the name on your taskbar; prints a message to send them
+.\pair.ps1 -Owner alice    # alice = the name on your taskbar; prints a message to send them
 ```
 
 Each link works once, within 24 hours, and installs an app that signs in by itself. On their phone they see **only their own account**: its
@@ -146,12 +146,12 @@ They get notified when:
 - a limit resets in 1 hour, 30, 15 or 5 minutes, and when it resets
 
 Each of these can be turned off on their phone. From the same screen they can **cap** your use
-(5-hour and weekly, 20–90%) or turn off **Allow Mazen to use it**. Your phone and PC are told right away. The Windows app then moves you
+(5-hour and weekly, 20–90%) or turn off **Allow Sam to use it**. Your phone and PC are told right away. The Windows app then moves you
 to another account when their cap is reached or they ask you to stop, even if you picked their
 account by hand, and won't switch back to it until they allow it again.
 
 Set the name they see in `%APPDATA%\ClaudeUsageMonitor\settings.ini`, in `[general]`:
-`your_name=Mazen`.
+`your_name=Sam`.
 
 ## Widgets (Scriptable)
 
@@ -184,7 +184,7 @@ Watch complications need a native app, but a Shortcut on the watch can show usag
 .\status.ps1 -Test    # send a test notification to every enabled device
 .\status.ps1 -Remove <id>  # unpair a phone (ids are in the status list)
 .\pair.ps1            # pair another device
-.\pair.ps1 -Owner huey  # pair the friend who owns the 'huey' account
+.\pair.ps1 -Owner alice  # pair the friend who owns the 'alice' account
 .\setup.ps1           # redeploy after updating the code
 ```
 

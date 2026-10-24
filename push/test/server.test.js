@@ -403,7 +403,7 @@ describe('push server', () => {
 
     it('sends account-switch notices once', async () => {
       const before = fake.received.length;
-      const notice = { id: 'switch:1', title: 'Claude account switched', body: 'nayef used up its 5-hour limit. Now using huey.' };
+      const notice = { id: 'switch:1', title: 'Claude account switched', body: 'bob used up its 5-hour limit. Now using alice.' };
       assert.equal((await internal('POST', '/internal/notice', notice)).status, 202);
       await waitFor(() => fake.received.length > before);
       assert.equal(decrypt(sub, fake.received[before].body).body, notice.body);

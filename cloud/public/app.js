@@ -944,7 +944,7 @@ async function sendHeadsUpFor(name, card) {
   }
 }
 
-// "Can Mazen use your 40% before your 5-hour session resets in 2h 14m (3:45 PM)?"
+// "Can Sam use your 40% before your 5-hour session resets in 2h 14m (3:45 PM)?"
 async function askReserveFor(name, card) {
   const acc = accountList().find((a) => a.name === name);
   const at = acc && acc.five_hour ? new Date(acc.five_hour.resetsAt * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
@@ -1378,7 +1378,7 @@ $('unpair-cancel').addEventListener('click', cancelUnpair);
 $('unpair-yes').addEventListener('click', unpair);
 $('widget-key').addEventListener('click', createWidgetKey);
 $('reserve-btn').addEventListener('click', toggleReserve);
-// Opened from "Let Mazen use your 40%?": bring the button into view once the page is drawn.
+// Opened from "Let Sam use your 40%?": bring the button into view once the page is drawn.
 if (new URLSearchParams(location.search).has('reserve')) {
   history.replaceState(null, '', '/');
   const showReserve = () => {

@@ -97,7 +97,7 @@ function pickAccounts(data) {
 
 const initial = (acc) => String(acc.name).slice(0, 1).toLowerCase();
 
-// The shortest start of each name that tells the accounts apart (huey, nayef, nooma: h, na, no).
+// The shortest start of each name that tells the accounts apart (alice, bob, carol: h, na, no).
 function shortNames(accounts) {
   const names = accounts.map((a) => String(a.name).toLowerCase());
   return names.map((n, i) => {

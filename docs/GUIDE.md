@@ -19,7 +19,7 @@ Each account gets a small column next to the clock, always in the same place:
 | | |
 |---|---|
 | **tok/s** (far left) | Token speed: the tokens Claude is writing per second right now, all your Claude Code sessions together, with Claude's spinner turning faster the more tokens flow. It comes from Claude Code's own logs (not Anthropic's usage checks); while a reply is still being written it is estimated from that session's usual speed, then corrected when the reply lands. Turn it off in right-click → **Display Settings**. |
-| **Name** (`huey`, `nayef`) | The account. The one in **orange** is the one Claude Code is using right now. |
+| **Name** (`alice`, `bob`) | The account. The one in **orange** is the one Claude Code is using right now. |
 | **Top line** | The **5-hour** limit: how much is used, with a bar, and how long until it resets. |
 | **Bottom line** | The **weekly** limit, the same way. |
 
@@ -57,7 +57,7 @@ Right-click the taskbar readout:
 | | |
 |---|---|
 | **Accounts** (top) | Every account with its 5-hour and weekly usage. ✓ marks the one in use. Click one to switch. |
-| **Rename** | Change the name shown on the taskbar (e.g. call an account `huey`). |
+| **Rename** | Change the name shown on the taskbar (e.g. call an account `alice`). |
 | **Phone link** | Make a one-time link to put the phone app on an iPhone: yours, or the owner of an account. The link is copied for you to paste. |
 | **Remove** | Take an account off this PC. |
 | **Refresh Now** | Check usage straight away. |
@@ -107,10 +107,10 @@ Every account is on one page, the one in use first, each in its own card:
 - **5h** and **Week:** how much is used, with a bar, and how long until it resets.
 - **Your cap:** limit how much of that account you'll use, for example after agreeing 40% with its
   owner.
-- **huey's cap:** the cap the owner set from their own phone, shown greyed out (only they can change
+- **alice's cap:** the cap the owner set from their own phone, shown greyed out (only they can change
   it). If both of you set one, the lower one wins.
 - **Switch:** move your PC to this account from wherever you are (section 2).
-- **Let huey know I'm about to use it:** sends that account's owner a heads-up. Only your phone has
+- **Let alice know I'm about to use it:** sends that account's owner a heads-up. Only your phone has
   this button.
 
 ### Choosing your notifications
@@ -129,7 +129,7 @@ Each friend gets the app on their own iPhone, showing **only their own account**
 
 ### Giving a friend their link
 
-1. Right-click the readout → **Phone link** → **For huey's owner**. The link is copied.
+1. Right-click the readout → **Phone link** → **For alice's owner**. The link is copied.
 2. Paste it to them in a message. They open it in Safari, tap **Share → Add to Home Screen**, open
    Claude Usage from the Home Screen and tap **Enable Notifications**.
 
@@ -142,7 +142,7 @@ one the same way. Tell them not to open it on a computer first.
 
 - Whether you're using their account right now (**green** = in use, **red** = not).
 - Their account's live usage and how many prompts are left on it.
-- **Allow Mazen to use it:** turn it off and your PC moves off their account straight away, and
+- **Allow Sam to use it:** turn it off and your PC moves off their account straight away, and
   stays off until they turn it back on. You're notified.
 - **5-hour cap / weekly cap:** your PC stops using their account at that percentage.
 - Their own choice of notifications: each kind has its own switch (heads-ups, start and stop, your

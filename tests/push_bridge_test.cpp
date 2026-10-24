@@ -115,8 +115,8 @@ static void TestJson() {
     CHECK(usage.find("\"five_hour\":{\"utilization_x100\":6650,\"resets_at\":2000}") != std::string::npos);
     CHECK(usage.find("\"seven_day_sonnet\":null") != std::string::npos);
 
-    std::string notice = BuildNoticeJson("switch:1", L"Claude account switched", L"nayef used up its \"5-hour\" limit. Now using huey.");
-    CHECK(notice == "{\"id\":\"switch:1\",\"title\":\"Claude account switched\",\"body\":\"nayef used up its \\\"5-hour\\\" limit. Now using huey.\"}");
+    std::string notice = BuildNoticeJson("switch:1", L"Claude account switched", L"bob used up its \"5-hour\" limit. Now using alice.");
+    CHECK(notice == "{\"id\":\"switch:1\",\"title\":\"Claude account switched\",\"body\":\"bob used up its \\\"5-hour\\\" limit. Now using alice.\"}");
 
     std::string event = BuildEventJson(LimitReset{kResetWeekly, 777});
     CHECK(event == "{\"id\":\"weekly_reset:777\",\"kind\":\"weekly_reset\",\"reset_at\":777}");
@@ -151,35 +151,35 @@ static void TestAccountsIndependent() {
     std::printf("accounts stay independent\n");
     AccountsSnapshot snap;
     snap.available = true;
-    AccountInfo huey, nayef;
-    huey.number = 1; huey.email = L"hueyduck@example.com"; huey.alias = L"huey"; huey.active = true;  // cswap's view
-    huey.five_hour = AccountWindow{true, 56, 1000}; huey.seven_day = AccountWindow{true, 13, 2000};
-    nayef.number = 2; nayef.email = L"NayefTest7@example.com"; nayef.alias = L"nayef";
-    nayef.five_hour = AccountWindow{true, 90, 3000}; nayef.seven_day = AccountWindow{true, 35, 4000};
-    snap.accounts = {huey, nayef};
+    AccountInfo alice, bob;
+    alice.number = 1; alice.email = L"alicesmith@example.com"; alice.alias = L"alice"; alice.active = true;  // cswap's view
+    alice.five_hour = AccountWindow{true, 56, 1000}; alice.seven_day = AccountWindow{true, 13, 2000};
+    bob.number = 2; bob.email = L"Bobtest7@example.com"; bob.alias = L"bob";
+    bob.five_hour = AccountWindow{true, 90, 3000}; bob.seven_day = AccountWindow{true, 35, 4000};
+    snap.accounts = {alice, bob};
 
-    // Claude Code is really signed in to nayef (e.g. right after /login).
+    // Claude Code is really signed in to bob (e.g. right after /login).
     UsageSnapshot live;
     live.has_data = true;
     live.data = Data(5000, 6000, 100, 40);
-    live.data.account_email = "nayeftest7@example.com";
+    live.data.account_email = "bobtest7@example.com";
     std::vector<AccountInfo> m = MergeAccounts(snap, live);
     CHECK(m.size() == 2);
     if (m.size() != 2) return;
     // Accounts keep their places (slot order); the real login is marked, not moved.
-    CHECK(m[0].alias == L"huey" && !m[0].active);
-    CHECK(m[0].five_hour.percent == 56 && m[0].seven_day.percent == 13);  // huey keeps its own numbers
-    CHECK(m[1].alias == L"nayef" && m[1].active);                     // the real login
+    CHECK(m[0].alias == L"alice" && !m[0].active);
+    CHECK(m[0].five_hour.percent == 56 && m[0].seven_day.percent == 13);  // alice keeps its own numbers
+    CHECK(m[1].alias == L"bob" && m[1].active);                     // the real login
     CHECK(m[1].five_hour.percent == 100 && m[1].seven_day.percent == 40);
     CHECK(!LiveLoginIsUnknown(snap, live));
 
     // Unknown login identity: nothing is overwritten.
     live.data.account_email.clear();
     m = MergeAccounts(snap, live);
-    CHECK(m[0].alias == L"huey" && m[0].five_hour.percent == 56 && m[1].five_hour.percent == 90);
+    CHECK(m[0].alias == L"alice" && m[0].five_hour.percent == 56 && m[1].five_hour.percent == 90);
 
     // A login claude-swap doesn't have yet is reported (so it can be saved), never merged.
-    live.data.account_email = "spud@example.com";
+    live.data.account_email = "dave@example.com";
     m = MergeAccounts(snap, live);
     CHECK(LiveLoginIsUnknown(snap, live));
     CHECK(m[0].five_hour.percent == 56 && m[1].five_hour.percent == 90);
@@ -187,15 +187,15 @@ static void TestAccountsIndependent() {
 
 static void TestOwners() {
     std::printf("account owners\n");
-    AccountInfo huey;
-    huey.email = L"HueyDuk@Example.com";
-    huey.alias = L"huey \"h\"";
-    huey.active = true;
-    huey.five_hour = AccountWindow{true, 52.345, 1800000000};
+    AccountInfo alice;
+    alice.email = L"Alicesmyth@Example.com";
+    alice.alias = L"alice \"h\"";
+    alice.active = true;
+    alice.five_hour = AccountWindow{true, 52.345, 1800000000};
     AccountInfo nokey;  // no email: never sent
-    std::string json = BuildAccountsJson(L"Nayef", {huey, nokey});
+    std::string json = BuildAccountsJson(L"Bob", {alice, nokey});
     CHECK(json ==
-          "{\"user_name\":\"Nayef\",\"accounts\":[{\"email\":\"hueyduk@example.com\",\"name\":\"huey \\\"h\\\"\","
+          "{\"user_name\":\"Bob\",\"accounts\":[{\"email\":\"alicesmyth@example.com\",\"name\":\"alice \\\"h\\\"\","
           "\"active\":true,\"five_hour\":{\"utilization_x100\":5235,\"resets_at\":1800000000},\"seven_day\":null}]}");
 
     std::vector<OwnerPolicy> p;
@@ -336,14 +336,14 @@ static void TestTypedInput() {
 static void TestUsageShare() {
     std::printf("reading handed to claude-swap\n");
     AccountInfo a;
-    a.email = L"huey@example.com";
+    a.email = L"alice@example.com";
     a.org_uuid = L"org-1";
     a.five_hour = AccountWindow{true, 52.5, 1792123200};  // 2026-10-16T04:00:00Z
     a.seven_day = AccountWindow{true, 35, 0};
     a.scoped.emplace_back(L"Fable", AccountWindow{true, 59, 1792123200});
     std::string json = BuildUsageShareJson(1, a, 12);
     CHECK(json ==
-          "{\"schemaVersion\":1,\"accounts\":[{\"email\":\"huey@example.com\",\"organizationUuid\":\"org-1\","
+          "{\"schemaVersion\":1,\"accounts\":[{\"email\":\"alice@example.com\",\"organizationUuid\":\"org-1\","
           "\"usageStatus\":\"ok\",\"usageAgeSeconds\":12,\"usage\":{\"fiveHour\":{\"pct\":52.50,"
           "\"resetsAt\":\"2026-10-16T04:00:00+00:00\"},\"sevenDay\":{\"pct\":35.00},\"scoped\":[{\"pct\":59.00,"
           "\"resetsAt\":\"2026-10-16T04:00:00+00:00\",\"name\":\"Fable\"}]}}]}");

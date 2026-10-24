@@ -593,7 +593,7 @@ export class Hub {
     return { delivered, targets: targets.length };
   }
 
-  // "nayef 5h 95% · wk 52%  |  huey 5h 16% · wk 21%": what the cloud has right now, for the
+  // "bob 5h 95% · wk 52%  |  alice 5h 16% · wk 21%": what the cloud has right now, for the
   // test notification (a phone's own accounts only).
   async usageSummary(device) {
     const accounts = (await this.storage.get('accounts')) || {};
@@ -676,7 +676,7 @@ export class Hub {
     await this.rearm(schedule);
   }
 
-  // "huey: 5-hour limit resets in 15m": 1 h, 30, 15 and 5 minutes before each reset (each on/off
+  // "alice: 5-hour limit resets in 15m": 1 h, 30, 15 and 5 minutes before each reset (each on/off
   // per phone). A reset learnt late gets only the nearest reminder. Unused windows are skipped.
   async resetReminders(now) {
     const accounts = (await this.storage.get('accounts')) || {};
@@ -721,7 +721,7 @@ export class Hub {
     await this.reserveOffers(now);
   }
 
-  // "Your 5-hour limit resets in 30m. Let Mazen use your 40% until then?": half an hour before a
+  // "Your 5-hour limit resets in 30m. Let Sam use your 40% until then?": half an hour before a
   // friend's 5-hour reset, while a cap holds some of it back for them (once per reset; on/off).
   async reserveOffers(now) {
     const accounts = (await this.storage.get('accounts')) || {};
@@ -946,7 +946,7 @@ export class Hub {
       for (const b of bytes) code += PAIR_ALPHABET[b % PAIR_ALPHABET.length];
       const ttl = this.env.PAIR_TTL_MS ? Number(this.env.PAIR_TTL_MS) : PAIR_TTL_MS;
       const expiresAt = Date.now() + ttl;
-      // Several codes may be pending (your phone, huey's, spud's); a new code for the same
+      // Several codes may be pending (your phone, alice's, dave's); a new code for the same
       // person replaces their old one.
       const pending = (await this.pendingPairings()).filter((p) => (p.ownerEmail || null) !== ownerEmail);
       pending.push({ codeHash: await sha256Hex(code), expiresAt, ownerEmail, ownerName });

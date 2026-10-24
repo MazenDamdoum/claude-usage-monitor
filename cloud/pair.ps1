@@ -8,7 +8,7 @@
   to stop.
   Each link works once, within 24 hours. A new link for the same person replaces the old one.
 .EXAMPLE
-  .\pair.ps1 -Owner huey
+  .\pair.ps1 -Owner alice
 #>
 param([string]$Owner)
 $ErrorActionPreference = 'Stop'

@@ -465,7 +465,7 @@ private:
             Tick();
             return 0;
         }
-        case kMsgPhoneSwitch: {  // "switch to huey" or the refresh button, tapped on a phone
+        case kMsgPhoneSwitch: {  // "switch to alice" or the refresh button, tapped on a phone
             if (wp == 1) {  // check now (within the rate limit) and send the result straight up
                 poller_.RefreshNow();
                 accounts_.RefreshNow();

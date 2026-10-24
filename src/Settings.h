@@ -46,7 +46,7 @@ struct Settings {
     bool auto_switch = true;           // switch accounts when the active one runs low
     int auto_switch_percent = 95;      // ...at this 5h or weekly usage
     std::wstring cswap_path;           // empty = find cswap.exe automatically
-    std::wstring your_name;            // how account owners see you in their alerts ("Nayef started using...")
+    std::wstring your_name;            // how account owners see you in their alerts ("Bob started using...")
 
     // Taskbar window
     bool taskbar_visible = true;
