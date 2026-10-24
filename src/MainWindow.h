@@ -26,6 +26,8 @@ private:
     LRESULT Handle(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp);
     void ApplyWindowStyle(const Settings& settings);
     void ClampToScreen(RECT& r) const;
+    void Place(int width, int height, const Settings& settings);
+    bool RenderAccounts(const std::vector<DisplayItem>& items, const Settings& settings, int dpi, SIZE& size);
 
     HINSTANCE instance_ = nullptr;
     HWND owner_ = nullptr;

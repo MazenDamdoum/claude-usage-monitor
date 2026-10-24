@@ -77,6 +77,19 @@ void ReadWindow(const mini_json::Value& root, const char* key, UsageWindow& w) {
     if (reset && reset->IsString()) w.resets_at = ParseIso8601(reset->string);
 }
 
+}  // namespace
+
+// CUM_TEST_API=http://127.0.0.1:<port>: a fake usage API for end-to-end tests. 0 when unset.
+int TestApiPort() {
+    std::wstring v = GetEnv(L"CUM_TEST_API");
+    const std::wstring prefix = L"http://127.0.0.1:";
+    if (v.compare(0, prefix.size(), prefix) != 0) return 0;
+    int port = _wtoi(v.c_str() + prefix.size());
+    return port > 0 && port < 65536 ? port : 0;
+}
+
+namespace {
+
 struct HttpResponse {
     int status = 0;
     int retry_after = 0;
@@ -95,13 +108,16 @@ HttpResponse HttpGet(const wchar_t* host, const wchar_t* path, std::wstring& hea
     HINTERNET connect = nullptr;
     HINTERNET request = nullptr;
 
+    // End-to-end tests point the app at a fake API on this PC (tests/app-e2e). Loopback only.
+    int test_port = TestApiPort();
     if (session) {
         WinHttpSetTimeouts(session, 10000, 10000, 15000, 15000);
-        connect = WinHttpConnect(session, host, INTERNET_DEFAULT_HTTPS_PORT, 0);
+        connect = test_port ? WinHttpConnect(session, L"127.0.0.1", static_cast<INTERNET_PORT>(test_port), 0)
+                            : WinHttpConnect(session, host, INTERNET_DEFAULT_HTTPS_PORT, 0);
     }
     if (connect) {
         request = WinHttpOpenRequest(connect, L"GET", path, nullptr, WINHTTP_NO_REFERER,
-                                     WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE);
+                                     WINHTTP_DEFAULT_ACCEPT_TYPES, test_port ? 0 : WINHTTP_FLAG_SECURE);
     }
     bool ok = request && WinHttpSendRequest(request, headers.c_str(), static_cast<DWORD>(headers.size()),
                                             WINHTTP_NO_REQUEST_DATA, 0, 0, 0) &&
@@ -141,6 +157,44 @@ HttpResponse HttpGet(const wchar_t* host, const wchar_t* path, std::wstring& hea
     if (connect) WinHttpCloseHandle(connect);
     if (session) WinHttpCloseHandle(session);
     return res;
+}
+
+// Resolves an access token to its account email with GET /api/oauth/profile (the same
+// identity check claude-swap uses). Cached by a fingerprint of the token, so it runs
+// once per token rather than on every usage check; failures are retried after 10 min.
+std::string AccountEmailFor(const std::string& token) {
+    static SRWLOCK lock = SRWLOCK_INIT;
+    static unsigned long long cached_fp = 0;
+    static std::string cached_email;
+    static long long retry_at = 0;
+
+    unsigned long long fp = 1469598103934665603ULL;  // FNV-1a
+    for (unsigned char c : token) fp = (fp ^ c) * 1099511628211ULL;
+    AcquireSRWLockShared(&lock);
+    bool hit = fp == cached_fp && (!cached_email.empty() || NowUnix() < retry_at);
+    std::string email = cached_email;
+    ReleaseSRWLockShared(&lock);
+    if (hit) return email;
+
+    std::wstring headers = L"Authorization: Bearer " + Utf8ToWide(token) +
+                           L"\r\nanthropic-beta: oauth-2025-04-20\r\nAccept: application/json\r\n";
+    HttpResponse http = HttpGet(kApiHost, L"/api/oauth/profile", headers);  // wipes headers
+    email.clear();
+    mini_json::Value root;
+    if (http.status == 200 && mini_json::Parser(http.body).Parse(root)) {
+        const mini_json::Value* account = root.Get("account");
+        const mini_json::Value* e = account ? account->Get("email") : nullptr;
+        if (e && e->IsString()) {
+            email = e->string;
+            for (char& c : email) c = static_cast<char>(c >= 'A' && c <= 'Z' ? c + 32 : c);
+        }
+    }
+    AcquireSRWLockExclusive(&lock);
+    cached_fp = fp;
+    cached_email = email;
+    retry_at = NowUnix() + 600;
+    ReleaseSRWLockExclusive(&lock);
+    return email;
 }
 
 }  // namespace
@@ -183,8 +237,13 @@ long long ParseIso8601(const std::string& text) {
     if (std::sscanf(text.c_str(), "%4d-%2d-%2dT%2d:%2d:%2d%n", &y, &mo, &d, &h, &mi, &s, &consumed) != 6)
         return 0;
     const char* p = text.c_str() + consumed;
-    if (*p == '.')
-        for (++p; *p >= '0' && *p <= '9'; ++p) {}
+    // Fractions round to the nearest second: Anthropic's resets come as 02:59:59.94..., which is 03:00.
+    int round_up = 0;
+    if (*p == '.') {
+        ++p;
+        if (*p >= '5' && *p <= '9') round_up = 1;
+        for (; *p >= '0' && *p <= '9'; ++p) {}
+    }
     long long offset = 0;
     if (*p == '+' || *p == '-') {
         int oh = 0, om = 0;
@@ -192,7 +251,7 @@ long long ParseIso8601(const std::string& text) {
         offset = (oh * 3600LL + om * 60LL) * (*p == '-' ? -1 : 1);
     }
     long long days = DaysFromCivil(y, static_cast<unsigned>(mo), static_cast<unsigned>(d));
-    return days * 86400LL + h * 3600LL + mi * 60LL + s - offset;
+    return days * 86400LL + h * 3600LL + mi * 60LL + s + round_up - offset;
 }
 
 std::wstring FormatDuration(long long seconds) {
@@ -219,6 +278,48 @@ std::wstring FormatLocalTime(long long unix_seconds) {
     GetDateFormatEx(LOCALE_NAME_USER_DEFAULT, 0, &local, L"ddd", day, 32, nullptr);
     GetTimeFormatEx(LOCALE_NAME_USER_DEFAULT, TIME_NOSECONDS, &local, nullptr, time, 32);
     return std::wstring(day) + L" " + time;
+}
+
+std::string LoginEmail(const std::wstring& credentials_path) {
+    std::string raw;
+    if (!ReadFileBytes(credentials_path, raw)) return {};
+    mini_json::Value creds;
+    bool parsed = mini_json::Parser(raw).Parse(creds);
+    Wipe(raw);
+    std::string email;
+    const mini_json::Value* oauth = parsed ? creds.Get("claudeAiOauth") : nullptr;
+    const mini_json::Value* token = oauth ? oauth->Get("accessToken") : nullptr;
+    if (token && token->IsString() && !token->string.empty()) email = AccountEmailFor(token->string);
+    WipeJson(creds);
+    return email;
+}
+
+std::vector<UsageExtra> FindUsageExtras(const std::string& body) {
+    static const char* const kKnown[] = {
+        "five_hour", "seven_day", "seven_day_oauth_apps", "seven_day_opus", "seven_day_sonnet", "seven_day_cowork",
+        "seven_day_omelette", "omelette_promotional", "extra_usage", "limits", "spend", "member_dashboard_available",
+        "seven_day_breakdown", "weekly_scoped_shares", "iguana_necktie"};  // iguana_necktie: a dollar credit grant
+    std::vector<UsageExtra> out;
+    mini_json::Value root;
+    if (!mini_json::Parser(body).Parse(root) || !root.IsObject()) return out;
+    for (size_t i = 0; i < root.keys.size() && out.size() < 5; ++i) {
+        const std::string& key = root.keys[i];
+        const mini_json::Value& v = root.items[i];
+        bool known = false;
+        for (const char* k : kKnown) known = known || key == k;
+        if (known || v.type == mini_json::Value::Null || v.type == mini_json::Value::Bool) continue;
+        if ((v.type == mini_json::Value::Array || v.type == mini_json::Value::Object) && v.items.empty()) continue;
+        UsageExtra e;
+        e.key = key;
+        // An end date, if it has one: on it, or on its first entry.
+        const mini_json::Value* holder = v.type == mini_json::Value::Array ? &v.items[0] : &v;
+        for (const char* name : {"expires_at", "ends_at", "valid_until", "expiration", "expiry", "resets_at"}) {
+            const mini_json::Value* d = holder->Get(name);
+            if (d && d->IsString() && (e.ends_at = ParseIso8601(d->string)) > 0) break;
+        }
+        out.push_back(e);
+    }
+    return out;
 }
 
 FetchResult FetchUsage(const std::wstring& credentials_path) {
@@ -258,6 +359,10 @@ FetchResult FetchUsage(const std::wstring& credentials_path) {
         r.error = L"Login token expired. Open Claude Code once and it will refresh.";
         return r;
     }
+
+    // Whose login is this? Claude Code can be signed in to a different account than an
+    // account switcher believes, so every reading carries the email it was taken with.
+    r.account_email = AccountEmailFor(token->string);
 
     std::wstring headers = L"Authorization: Bearer " + Utf8ToWide(token->string) +
                            L"\r\nanthropic-beta: oauth-2025-04-20\r\nAccept: application/json\r\n";
@@ -299,6 +404,7 @@ FetchResult FetchUsage(const std::wstring& credentials_path) {
     ReadWindow(root, "seven_day", r.seven_day);
     ReadWindow(root, "seven_day_sonnet", r.seven_day_sonnet);
     ReadWindow(root, "seven_day_opus", r.seven_day_opus);
+    r.extras = FindUsageExtras(r.body);
     if (!r.five_hour.present && !r.seven_day.present) {
         r.status = FetchStatus::ParseError;
         r.error = L"Usage response had no five_hour / seven_day data.";

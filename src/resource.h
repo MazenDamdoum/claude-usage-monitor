@@ -6,6 +6,10 @@
 #define IDD_PAGE_TASKBAR 102
 #define IDD_PAGE_GENERAL 103
 #define IDD_DISPLAY_ITEMS 104
+#define IDD_RENAME 105
+#define IDD_OPTIONS 106
+#define IDC_RENAME_EDIT 1090
+#define IDC_RENAME_TEXT 1091
 
 // Main window / taskbar window pages (same IDs, separate dialogs)
 #define IDC_FONT_NAME 1001
@@ -48,9 +52,27 @@
 #define IDC_CRIT_SPIN 1048
 #define IDC_NOTIFY 1049
 #define IDC_TRAY 1050
+#define IDC_LIVE 1051
+#define IDC_PUSH 1052
+#define IDC_ACCOUNTS 1053
+#define IDC_AUTO_SWITCH 1054
+#define IDC_AUTO_PCT 1055
+#define IDC_AUTO_PCT_SPIN 1056
 
 // Display items dialog: IDC_DI_SHOW0 + item, IDC_DI_LABEL0 + item
 #define IDC_DI_SHOW0 1060
 #define IDC_DI_LABEL0 1070
 #define IDC_DI_DEFAULTS 1080
+#define IDC_BAR_QUARTERS 1082
+#define IDC_TOKENS_SHOW 1084
+#define IDC_TOKENS_PILE 1085
+#define IDC_BLOSSOM 1086
+#define IDC_SWITCH_GLOW 1087
+#define IDC_ACTIVE_FIRST 1088
+#define IDC_DIM_STANDBY 1089
+#define IDC_LONG_UNIT 1095
+#define IDC_CHECK_TIMER 1096
+#define IDC_FIT 1097
+#define IDC_OPT_SCROLL 1092
+#define IDC_OPT_APPLY 1093
 

@@ -1,0 +1,19 @@
+{
+  "name": "claude-usage-push",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Optional iPhone / Apple Watch push notifications for Claude Usage Monitor (PWA + Web Push).",
+  "license": "MIT",
+  "main": "server.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/server.test.js"
+  },
+  "dependencies": {
+    "express": "^4.22.3",
+    "web-push": "^3.6.7"
+  }
+}

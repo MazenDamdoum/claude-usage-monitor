@@ -87,6 +87,7 @@ void ReadLook(const Ini& ini, const wchar_t* sec, WindowLook& look) {
     look.background_color = ini.Color(sec, L"background_color", look.background_color);
     look.show_reset = ini.Bool(sec, L"show_reset", look.show_reset);
     look.show_bars = ini.Bool(sec, L"show_bars", look.show_bars);
+    look.bar_quarters = ini.Bool(sec, L"bar_quarters", look.bar_quarters);
     look.percent_space = ini.Bool(sec, L"percent_space", look.percent_space);
     look.hide_percent = ini.Bool(sec, L"hide_percent", look.hide_percent);
     look.tooltip = ini.Bool(sec, L"tooltip", look.tooltip);
@@ -106,6 +107,7 @@ void WriteLook(const Ini& ini, const wchar_t* sec, const WindowLook& look) {
     ini.PutColor(sec, L"background_color", look.background_color);
     ini.PutBool(sec, L"show_reset", look.show_reset);
     ini.PutBool(sec, L"show_bars", look.show_bars);
+    ini.PutBool(sec, L"bar_quarters", look.bar_quarters);
     ini.PutBool(sec, L"percent_space", look.percent_space);
     ini.PutBool(sec, L"hide_percent", look.hide_percent);
     ini.PutBool(sec, L"tooltip", look.tooltip);
@@ -182,11 +184,18 @@ Settings Settings::Load() {
     s.taskbar.items[kItemWeekly].label = ini.Str(kLegacy, L"label_weekly", s.taskbar.items[kItemWeekly].label);
 
     s.poll_seconds = Clamp(ini.Int(kGeneral, L"poll_seconds", s.poll_seconds), 60, 3600);
+    s.live = ini.Bool(kGeneral, L"live", s.live);
     s.credentials_path = ini.Str(kGeneral, L"credentials_path", s.credentials_path);
     s.warn_percent = Clamp(ini.Int(kGeneral, L"warn_percent", s.warn_percent), 1, 100);
     s.critical_percent = Clamp(ini.Int(kGeneral, L"critical_percent", s.critical_percent), 1, 100);
     s.notify = ini.Bool(kGeneral, L"notify", s.notify);
     s.show_tray_icon = ini.Bool(kGeneral, L"show_tray_icon", s.show_tray_icon);
+    s.phone_notifications = ini.Bool(kGeneral, L"phone_notifications", s.phone_notifications);
+    s.accounts_enabled = ini.Bool(kGeneral, L"accounts", s.accounts_enabled);
+    s.auto_switch = ini.Bool(kGeneral, L"auto_switch", s.auto_switch);
+    s.auto_switch_percent = Clamp(ini.Int(kGeneral, L"auto_switch_percent", s.auto_switch_percent), 50, 100);
+    s.cswap_path = ini.Str(kGeneral, L"cswap_path", s.cswap_path);
+    s.your_name = ini.Str(kGeneral, L"your_name", s.your_name);
 
     s.taskbar_visible = ini.Bool(kTaskbar, L"visible", s.taskbar_visible);
     ReadLook(ini, kTaskbar, s.taskbar);
@@ -195,6 +204,16 @@ Settings Settings::Load() {
     s.taskbar_right_align = ini.Bool(kTaskbar, L"right_align", s.taskbar_right_align);
     s.taskbar_horizontal = ini.Bool(kTaskbar, L"horizontal", s.taskbar_horizontal);
     s.taskbar_offset_x = Clamp(ini.Int(kTaskbar, L"offset_x", s.taskbar_offset_x), -4000, 4000);
+    s.taskbar_tokens = ini.Bool(kTaskbar, L"tokens", s.taskbar_tokens);
+    s.taskbar_token_pile = ini.Bool(kTaskbar, L"token_pile", s.taskbar_token_pile);
+    s.taskbar_blossom = ini.Bool(kTaskbar, L"blossom", s.taskbar_blossom);
+    s.taskbar_switch_glow = ini.Bool(kTaskbar, L"switch_glow", s.taskbar_switch_glow);
+    s.taskbar_active_first = ini.Bool(kTaskbar, L"active_first", s.taskbar_active_first);
+    s.taskbar_dim_standby = ini.Bool(kTaskbar, L"dim_standby", s.taskbar_dim_standby);
+    s.taskbar_long_unit = ini.Bool(kTaskbar, L"long_unit", s.taskbar_long_unit);
+    s.taskbar_check_timer = ini.Bool(kTaskbar, L"check_timer", s.taskbar_check_timer);
+    s.taskbar_fit = ini.Bool(kTaskbar, L"fit", s.taskbar_fit);
+    s.taskbar_collapsed = ini.Bool(kTaskbar, L"collapsed", s.taskbar_collapsed);
 
     s.main_visible = ini.Bool(kMain, L"visible", s.main_visible);
     ReadLook(ini, kMain, s.main);
@@ -216,11 +235,18 @@ void Settings::Save() const {
     ini.DeleteSection(kLegacy);
 
     ini.Put(kGeneral, L"poll_seconds", poll_seconds);
+    ini.PutBool(kGeneral, L"live", live);
     ini.Put(kGeneral, L"credentials_path", credentials_path);
     ini.Put(kGeneral, L"warn_percent", warn_percent);
     ini.Put(kGeneral, L"critical_percent", critical_percent);
     ini.PutBool(kGeneral, L"notify", notify);
     ini.PutBool(kGeneral, L"show_tray_icon", show_tray_icon);
+    ini.PutBool(kGeneral, L"phone_notifications", phone_notifications);
+    ini.PutBool(kGeneral, L"accounts", accounts_enabled);
+    ini.PutBool(kGeneral, L"auto_switch", auto_switch);
+    ini.Put(kGeneral, L"auto_switch_percent", auto_switch_percent);
+    ini.Put(kGeneral, L"cswap_path", cswap_path);
+    ini.Put(kGeneral, L"your_name", your_name);
 
     ini.PutBool(kTaskbar, L"visible", taskbar_visible);
     WriteLook(ini, kTaskbar, taskbar);
@@ -228,6 +254,16 @@ void Settings::Save() const {
     ini.PutBool(kTaskbar, L"auto_colors", taskbar_auto_colors);
     ini.PutBool(kTaskbar, L"right_align", taskbar_right_align);
     ini.PutBool(kTaskbar, L"horizontal", taskbar_horizontal);
+    ini.PutBool(kTaskbar, L"tokens", taskbar_tokens);
+    ini.PutBool(kTaskbar, L"token_pile", taskbar_token_pile);
+    ini.PutBool(kTaskbar, L"blossom", taskbar_blossom);
+    ini.PutBool(kTaskbar, L"switch_glow", taskbar_switch_glow);
+    ini.PutBool(kTaskbar, L"active_first", taskbar_active_first);
+    ini.PutBool(kTaskbar, L"dim_standby", taskbar_dim_standby);
+    ini.PutBool(kTaskbar, L"long_unit", taskbar_long_unit);
+    ini.PutBool(kTaskbar, L"check_timer", taskbar_check_timer);
+    ini.PutBool(kTaskbar, L"fit", taskbar_fit);
+    ini.PutBool(kTaskbar, L"collapsed", taskbar_collapsed);
     ini.Put(kTaskbar, L"offset_x", taskbar_offset_x);
 
     ini.PutBool(kMain, L"visible", main_visible);

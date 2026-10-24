@@ -1,0 +1,21 @@
+{
+  "name": "claude-usage-cloud",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cloud relay for Claude Usage Monitor: phone app, reset alerts and widget API on Cloudflare Workers (free plan).",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test test/webpush.test.js test/hub.test.js",
+    "e2e": "node test/e2e-local.mjs",
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "devDependencies": {
+    "http_ece": "^1.2.0",
+    "wrangler": "^3.114.0"
+  }
+}

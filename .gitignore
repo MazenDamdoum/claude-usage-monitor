@@ -2,5 +2,9 @@ build/
 build-*/
 .tools/
 *.zip
+node_modules/
 # local TrafficMonitor copy kept next to the repo for reference
 /TrafficMonitor/
+# cloud relay: local dev secrets and wrangler state
+.dev.vars
+.wrangler/

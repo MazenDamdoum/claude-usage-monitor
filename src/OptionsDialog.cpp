@@ -3,6 +3,9 @@
 #include <commctrl.h>
 #include <commdlg.h>
 
+#include <algorithm>
+
+#include "AppFiles.h"
 #include "Canvas.h"
 #include "UsageClient.h"
 #include "resource.h"
@@ -10,7 +13,7 @@
 namespace options {
 namespace {
 
-HWND g_sheet = nullptr;
+const wchar_t kScrollClass[] = L"ClaudeUsageMonitor.OptionsScroll";
 
 // Shared custom colors for every color picker: the app palette first.
 COLORREF g_custom_colors[16] = {
@@ -20,18 +23,33 @@ COLORREF g_custom_colors[16] = {
     RGB(255, 255, 255), RGB(255, 255, 255), RGB(255, 255, 255), RGB(255, 255, 255),
 };
 
-struct SheetState {
-    HINSTANCE instance = nullptr;
-    Settings working;
-    bool startup = false;
-    const ApplyFn* apply = nullptr;
-};
+struct SheetState;
 
 struct PageCtx {
     SheetState* state = nullptr;
     Page page = kPageGeneral;
     bool ready = false;  // ignore change notifications during WM_INITDIALOG
+    HWND hwnd = nullptr;
 };
+
+// The Options window: every page in one scrolling view (taskbar, main window, general).
+struct SheetState {
+    HINSTANCE instance = nullptr;
+    Settings working;
+    bool startup = false;
+    const ApplyFn* apply = nullptr;
+    Page start_page = kPageTaskbar;
+    HWND host = nullptr;
+    HWND scroll = nullptr;
+    PageCtx pages[3];
+    int section_y[3] = {};  // where each page's heading sits, by Page
+    int content_h = 0;
+    int pos = 0;            // scrolled this far down
+    HFONT header_font = nullptr;
+    bool laid_out = false;  // follow the keyboard focus only once the pages are in place
+};
+
+SheetState* g_state = nullptr;  // the open Options window, if any
 
 int Clamp(int v, int lo, int hi) { return v < lo ? lo : (v > hi ? hi : v); }
 void SetCheck(HWND dlg, int id, bool v) { CheckDlgButton(dlg, id, v ? BST_CHECKED : BST_UNCHECKED); }
@@ -56,7 +74,7 @@ std::wstring GetText(HWND dlg, int id) {
 
 void Changed(HWND page) {
     auto* ctx = reinterpret_cast<PageCtx*>(GetWindowLongPtrW(page, DWLP_USER));
-    if (ctx && ctx->ready) PropSheet_Changed(GetParent(page), page);
+    if (ctx && ctx->ready && ctx->state->host) EnableWindow(GetDlgItem(ctx->state->host, IDC_OPT_APPLY), TRUE);
 }
 
 bool PickColor(HWND owner, COLORREF& color) {
@@ -190,6 +208,11 @@ void UpdateLookEnables(HWND dlg, PageCtx* ctx) {
     EnableWindow(GetDlgItem(dlg, IDC_LABEL_COLOR), !auto_colors);
     EnableWindow(GetDlgItem(dlg, IDC_VALUE_COLOR), !auto_colors);
     EnableWindow(GetDlgItem(dlg, IDC_BG_COLOR), !GetCheck(dlg, IDC_TRANSPARENT));
+    bool tokens = GetCheck(dlg, IDC_TOKENS_SHOW);
+    EnableWindow(GetDlgItem(dlg, IDC_TOKENS_PILE), tokens);
+    EnableWindow(GetDlgItem(dlg, IDC_BLOSSOM), tokens);
+    EnableWindow(GetDlgItem(dlg, IDC_LONG_UNIT), tokens && !GetCheck(dlg, IDC_TOKENS_PILE));
+    EnableWindow(GetDlgItem(dlg, IDC_BAR_QUARTERS), GetCheck(dlg, IDC_SHOW_BARS));
 }
 
 void InitLookPage(HWND dlg, PageCtx* ctx) {
@@ -199,6 +222,7 @@ void InitLookPage(HWND dlg, PageCtx* ctx) {
     SetupSpin(dlg, IDC_FONT_SPIN, 6, 28, look.font_size);
     SetCheck(dlg, IDC_SHOW_RESET, look.show_reset);
     SetCheck(dlg, IDC_SHOW_BARS, look.show_bars);
+    SetCheck(dlg, IDC_BAR_QUARTERS, look.bar_quarters);
     SetCheck(dlg, IDC_SPACE, look.percent_space);
     SetCheck(dlg, IDC_HIDE_PERCENT, look.hide_percent);
     SetCheck(dlg, IDC_TOOLTIP, look.tooltip);
@@ -208,6 +232,15 @@ void InitLookPage(HWND dlg, PageCtx* ctx) {
         SetCheck(dlg, IDC_RIGHT_ALIGN, s.taskbar_right_align);
         SetCheck(dlg, IDC_HORIZONTAL, s.taskbar_horizontal);
         SetupSpin(dlg, IDC_OFFSET_SPIN, -2000, 2000, s.taskbar_offset_x);
+        SetCheck(dlg, IDC_TOKENS_SHOW, s.taskbar_tokens);
+        SetCheck(dlg, IDC_TOKENS_PILE, s.taskbar_token_pile);
+        SetCheck(dlg, IDC_BLOSSOM, s.taskbar_blossom);
+        SetCheck(dlg, IDC_SWITCH_GLOW, s.taskbar_switch_glow);
+        SetCheck(dlg, IDC_ACTIVE_FIRST, s.taskbar_active_first);
+        SetCheck(dlg, IDC_DIM_STANDBY, s.taskbar_dim_standby);
+        SetCheck(dlg, IDC_LONG_UNIT, s.taskbar_long_unit);
+        SetCheck(dlg, IDC_CHECK_TIMER, s.taskbar_check_timer);
+        SetCheck(dlg, IDC_FIT, s.taskbar_fit);
     } else {
         SetupSpin(dlg, IDC_OPACITY_SPIN, 20, 100, s.main_opacity);
         SetCheck(dlg, IDC_TOPMOST, s.main_topmost);
@@ -224,6 +257,7 @@ void ApplyLookPage(HWND dlg, PageCtx* ctx) {
     look.font_size = GetSpin(dlg, IDC_FONT_SPIN, 6, 28);
     look.show_reset = GetCheck(dlg, IDC_SHOW_RESET);
     look.show_bars = GetCheck(dlg, IDC_SHOW_BARS);
+    look.bar_quarters = GetCheck(dlg, IDC_BAR_QUARTERS);
     look.percent_space = GetCheck(dlg, IDC_SPACE);
     look.hide_percent = GetCheck(dlg, IDC_HIDE_PERCENT);
     look.tooltip = GetCheck(dlg, IDC_TOOLTIP);
@@ -233,6 +267,15 @@ void ApplyLookPage(HWND dlg, PageCtx* ctx) {
         s.taskbar_right_align = GetCheck(dlg, IDC_RIGHT_ALIGN);
         s.taskbar_horizontal = GetCheck(dlg, IDC_HORIZONTAL);
         s.taskbar_offset_x = GetSpin(dlg, IDC_OFFSET_SPIN, -2000, 2000);
+        s.taskbar_tokens = GetCheck(dlg, IDC_TOKENS_SHOW);
+        s.taskbar_token_pile = GetCheck(dlg, IDC_TOKENS_PILE);
+        s.taskbar_blossom = GetCheck(dlg, IDC_BLOSSOM);
+        s.taskbar_switch_glow = GetCheck(dlg, IDC_SWITCH_GLOW);
+        s.taskbar_active_first = GetCheck(dlg, IDC_ACTIVE_FIRST);
+        s.taskbar_dim_standby = GetCheck(dlg, IDC_DIM_STANDBY);
+        s.taskbar_long_unit = GetCheck(dlg, IDC_LONG_UNIT);
+        s.taskbar_check_timer = GetCheck(dlg, IDC_CHECK_TIMER);
+        s.taskbar_fit = GetCheck(dlg, IDC_FIT);
     } else {
         s.main_opacity = GetSpin(dlg, IDC_OPACITY_SPIN, 20, 100);
         s.main_topmost = GetCheck(dlg, IDC_TOPMOST);
@@ -304,6 +347,7 @@ void LookCommand(HWND dlg, PageCtx* ctx, int id, int code) {
 void InitGeneralPage(HWND dlg, PageCtx* ctx) {
     const Settings& s = ctx->state->working;
     SetCheck(dlg, IDC_STARTUP, ctx->state->startup);
+    SetCheck(dlg, IDC_LIVE, s.live);
     SetupSpin(dlg, IDC_POLL_SPIN, 60, 3600, s.poll_seconds);
     SetDlgItemTextW(dlg, IDC_CRED, s.credentials_path.c_str());
     SendDlgItemMessageW(dlg, IDC_CRED, EM_SETCUEBANNER, TRUE,
@@ -312,12 +356,17 @@ void InitGeneralPage(HWND dlg, PageCtx* ctx) {
     SetupSpin(dlg, IDC_CRIT_SPIN, 1, 100, s.critical_percent);
     SetCheck(dlg, IDC_NOTIFY, s.notify);
     SetCheck(dlg, IDC_TRAY, s.show_tray_icon);
+    SetCheck(dlg, IDC_PUSH, s.phone_notifications);
+    SetCheck(dlg, IDC_ACCOUNTS, s.accounts_enabled);
+    SetCheck(dlg, IDC_AUTO_SWITCH, s.auto_switch);
+    SetupSpin(dlg, IDC_AUTO_PCT_SPIN, 50, 100, s.auto_switch_percent);
     EnableWindow(GetDlgItem(dlg, IDC_NOTIFY), s.show_tray_icon);
 }
 
 void ApplyGeneralPage(HWND dlg, PageCtx* ctx) {
     Settings& s = ctx->state->working;
     ctx->state->startup = GetCheck(dlg, IDC_STARTUP);
+    s.live = GetCheck(dlg, IDC_LIVE);
     s.poll_seconds = GetSpin(dlg, IDC_POLL_SPIN, 60, 3600);
     s.credentials_path = GetText(dlg, IDC_CRED);
     s.warn_percent = GetSpin(dlg, IDC_WARN_SPIN, 1, 100);
@@ -325,6 +374,10 @@ void ApplyGeneralPage(HWND dlg, PageCtx* ctx) {
     if (s.critical_percent < s.warn_percent) s.critical_percent = s.warn_percent;
     s.notify = GetCheck(dlg, IDC_NOTIFY);
     s.show_tray_icon = GetCheck(dlg, IDC_TRAY);
+    s.phone_notifications = GetCheck(dlg, IDC_PUSH);
+    s.accounts_enabled = GetCheck(dlg, IDC_ACCOUNTS);
+    s.auto_switch = GetCheck(dlg, IDC_AUTO_SWITCH);
+    s.auto_switch_percent = GetSpin(dlg, IDC_AUTO_PCT_SPIN, 50, 100);
 }
 
 void GeneralCommand(HWND dlg, int id, int code) {
@@ -350,6 +403,7 @@ void GeneralCommand(HWND dlg, int id, int code) {
         EnableWindow(GetDlgItem(dlg, IDC_NOTIFY), GetCheck(dlg, IDC_TRAY));
         Changed(dlg);
         break;
+    case IDC_AUTO_PCT:
     case IDC_POLL:
     case IDC_CRED:
     case IDC_WARN:
@@ -368,14 +422,15 @@ INT_PTR CALLBACK PageProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp) {
     auto* ctx = reinterpret_cast<PageCtx*>(GetWindowLongPtrW(dlg, DWLP_USER));
     switch (msg) {
     case WM_INITDIALOG: {
-        ctx = reinterpret_cast<PageCtx*>(reinterpret_cast<PROPSHEETPAGEW*>(lp)->lParam);
+        ctx = reinterpret_cast<PageCtx*>(lp);
+        ctx->hwnd = dlg;
         SetWindowLongPtrW(dlg, DWLP_USER, reinterpret_cast<LONG_PTR>(ctx));
         if (ctx->page == kPageGeneral)
             InitGeneralPage(dlg, ctx);
         else
             InitLookPage(dlg, ctx);
         ctx->ready = true;
-        return TRUE;
+        return FALSE;  // the Options window sets the focus, once every page is in place
     }
     case WM_DRAWITEM: {
         auto* di = reinterpret_cast<DRAWITEMSTRUCT*>(lp);
@@ -393,16 +448,174 @@ INT_PTR CALLBACK PageProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp) {
         else
             LookCommand(dlg, ctx, LOWORD(wp), HIWORD(wp));
         return TRUE;
-    case WM_NOTIFY:
-        if (ctx && reinterpret_cast<NMHDR*>(lp)->code == PSN_APPLY) {
-            if (ctx->page == kPageGeneral)
-                ApplyGeneralPage(dlg, ctx);
-            else
-                ApplyLookPage(dlg, ctx);
-            if (ctx->state->apply && *ctx->state->apply) (*ctx->state->apply)(ctx->state->working, ctx->state->startup);
-            SetWindowLongPtrW(dlg, DWLP_MSGRESULT, PSNRET_NOERROR);
-            return TRUE;
+    default:
+        break;
+    }
+    return FALSE;
+}
+
+// ---- The scrolling Options window ----------------------------------------------------
+
+void ApplyAll(SheetState* st) {
+    for (PageCtx& c : st->pages) {
+        if (!c.hwnd) continue;
+        if (c.page == kPageGeneral)
+            ApplyGeneralPage(c.hwnd, &c);
+        else
+            ApplyLookPage(c.hwnd, &c);
+    }
+    if (st->apply && *st->apply) (*st->apply)(st->working, st->startup);
+    EnableWindow(GetDlgItem(st->host, IDC_OPT_APPLY), FALSE);
+}
+
+void UpdateScrollBar(SheetState* st) {
+    RECT view;
+    GetClientRect(st->scroll, &view);
+    SCROLLINFO si = {};
+    si.cbSize = sizeof(si);
+    si.fMask = SIF_RANGE | SIF_PAGE | SIF_POS;
+    si.nMax = std::max(0, st->content_h - 1);
+    si.nPage = static_cast<UINT>(view.bottom);
+    si.nPos = st->pos;
+    SetScrollInfo(st->scroll, SB_VERT, &si, TRUE);
+}
+
+void ScrollTo(SheetState* st, int pos) {
+    RECT view;
+    GetClientRect(st->scroll, &view);
+    pos = Clamp(pos, 0, std::max(0, st->content_h - static_cast<int>(view.bottom)));
+    int dy = st->pos - pos;
+    if (!dy) return;
+    st->pos = pos;
+    ScrollWindowEx(st->scroll, 0, dy, nullptr, nullptr, nullptr, nullptr, SW_SCROLLCHILDREN | SW_INVALIDATE | SW_ERASE);
+    UpdateScrollBar(st);
+}
+
+LRESULT CALLBACK ScrollProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
+    SheetState* st = g_state;
+    if (st && st->scroll == hwnd) {
+        const int dpi = static_cast<int>(GetDpiForWindow(hwnd));
+        RECT view;
+        GetClientRect(hwnd, &view);
+        switch (msg) {
+        case WM_VSCROLL: {
+            int pos = st->pos;
+            const int line = MulDiv(24, dpi, 96);
+            switch (LOWORD(wp)) {
+            case SB_LINEUP: pos -= line; break;
+            case SB_LINEDOWN: pos += line; break;
+            case SB_PAGEUP: pos -= view.bottom - line; break;
+            case SB_PAGEDOWN: pos += view.bottom - line; break;
+            case SB_TOP: pos = 0; break;
+            case SB_BOTTOM: pos = st->content_h; break;
+            case SB_THUMBTRACK:
+            case SB_THUMBPOSITION: {
+                SCROLLINFO si = {};
+                si.cbSize = sizeof(si);
+                si.fMask = SIF_TRACKPOS;
+                GetScrollInfo(hwnd, SB_VERT, &si);
+                pos = si.nTrackPos;
+                break;
+            }
+            default: break;
+            }
+            ScrollTo(st, pos);
+            return 0;
         }
+        case WM_MOUSEWHEEL:  // also arrives here from the controls under the mouse
+            ScrollTo(st, st->pos - MulDiv(GET_WHEEL_DELTA_WPARAM(wp), MulDiv(72, dpi, 96), WHEEL_DELTA));
+            return 0;
+        default:
+            break;
+        }
+    }
+    return DefWindowProcW(hwnd, msg, wp, lp);
+}
+
+// Keeps the control that just got the keyboard focus (Tab) in view.
+void ScrollIntoView(SheetState* st, HWND focus) {
+    if (!focus || !IsChild(st->scroll, focus)) return;
+    RECT r, view;
+    GetWindowRect(focus, &r);
+    MapWindowPoints(HWND_DESKTOP, st->scroll, reinterpret_cast<POINT*>(&r), 2);
+    GetClientRect(st->scroll, &view);
+    const int margin = MulDiv(12, static_cast<int>(GetDpiForWindow(st->scroll)), 96);
+    if (r.top < margin) ScrollTo(st, st->pos + r.top - margin);
+    else if (r.bottom > view.bottom - margin) ScrollTo(st, st->pos + r.bottom - view.bottom + margin);
+}
+
+INT_PTR CALLBACK HostProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp) {
+    SheetState* st = g_state;
+    switch (msg) {
+    case WM_INITDIALOG: {
+        st = reinterpret_cast<SheetState*>(lp);
+        g_state = st;
+        st->host = dlg;
+        st->scroll = GetDlgItem(dlg, IDC_OPT_SCROLL);
+        HICON icon = LoadIconW(st->instance, MAKEINTRESOURCEW(IDI_APP));
+        SendMessageW(dlg, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(icon));
+        SendMessageW(dlg, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(icon));
+        const int dpi = static_cast<int>(GetDpiForWindow(dlg));
+        auto scale = [dpi](int px) { return MulDiv(px, dpi, 96); };
+        st->header_font = CreateUiFont(L"Segoe UI Semibold", 11, false, dpi);
+        RECT view;
+        GetClientRect(st->scroll, &view);
+
+        // Taskbar first (what most people change), then the main window, then general.
+        const Page order[3] = {kPageTaskbar, kPageMain, kPageGeneral};
+        const int templates[3] = {IDD_PAGE_TASKBAR, IDD_PAGE_MAIN, IDD_PAGE_GENERAL};
+        int y = scale(8);
+        const int header_h = scale(24);
+        for (int i = 0; i < 3; ++i) {
+            PageCtx& c = st->pages[i];
+            c.state = st;
+            c.page = order[i];
+            HWND page = CreateDialogParamW(st->instance, MAKEINTRESOURCEW(templates[i]), st->scroll, &PageProc,
+                                           reinterpret_cast<LPARAM>(&c));
+            if (!page) continue;
+            wchar_t title[128] = {};
+            GetWindowTextW(page, title, 128);  // the page's caption becomes its heading
+            RECT client;
+            GetClientRect(page, &client);
+            SetWindowLongPtrW(page, GWL_STYLE, (GetWindowLongPtrW(page, GWL_STYLE) & ~WS_CAPTION) | WS_CHILD);
+            SetWindowLongPtrW(page, GWL_EXSTYLE, GetWindowLongPtrW(page, GWL_EXSTYLE) | WS_EX_CONTROLPARENT);
+            const int x = std::max(0, static_cast<int>(view.right - client.right) / 2);
+            st->section_y[c.page] = y - scale(8);
+            HWND header = CreateWindowExW(0, L"STATIC", title, WS_CHILD | WS_VISIBLE | SS_LEFT | SS_NOPREFIX,
+                                          x + scale(10), y, client.right - scale(10), header_h, st->scroll, nullptr,
+                                          st->instance, nullptr);
+            SendMessageW(header, WM_SETFONT, reinterpret_cast<WPARAM>(st->header_font), TRUE);
+            y += header_h;
+            SetWindowPos(page, nullptr, x, y, client.right, client.bottom,
+                         SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+            y += client.bottom + scale(10);
+        }
+        st->content_h = y;
+        UpdateScrollBar(st);
+        ScrollTo(st, st->section_y[st->start_page]);
+        st->laid_out = true;
+        return TRUE;
+    }
+    case WM_COMMAND:
+        if (!st) break;
+        switch (LOWORD(wp)) {
+        case IDOK:
+            ApplyAll(st);
+            EndDialog(dlg, IDOK);
+            return TRUE;
+        case IDCANCEL:
+            EndDialog(dlg, IDCANCEL);
+            return TRUE;
+        case IDC_OPT_APPLY:
+            ApplyAll(st);
+            return TRUE;
+        default:
+            break;
+        }
+        break;
+    case WM_DESTROY:
+        if (st && st->header_font) DeleteObject(st->header_font);
+        g_state = nullptr;
         break;
     default:
         break;
@@ -410,29 +623,9 @@ INT_PTR CALLBACK PageProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp) {
     return FALSE;
 }
 
-HIMAGELIST g_tab_images = nullptr;
-
-// The sheet's own tab image list drops alpha, so install a 32-bit one.
-int CALLBACK SheetCallback(HWND sheet, UINT msg, LPARAM) {
-    if (msg != PSCB_INITIALIZED) return 0;
-    g_sheet = sheet;
-    const int size = GetSystemMetricsForDpi(SM_CXSMICON, GetDpiForWindow(sheet));
-    const wchar_t glyphs[3] = {glyph::kWindow, glyph::kTaskbar, glyph::kSettings};
-    g_tab_images = ImageList_Create(size, size, ILC_COLOR32, 3, 0);
-    for (wchar_t g : glyphs) {
-        HICON icon = CreateGlyphIcon(g, size, RGB(64, 64, 64));
-        ImageList_AddIcon(g_tab_images, icon);
-        DestroyIcon(icon);
-    }
-    HWND tab = PropSheet_GetTabControl(sheet);
-    TabCtrl_SetImageList(tab, g_tab_images);
-    for (int i = 0; i < 3; ++i) {
-        TCITEMW item = {};
-        item.mask = TCIF_IMAGE;
-        item.iImage = i;
-        SendMessageW(tab, TCM_SETITEMW, i, reinterpret_cast<LPARAM>(&item));
-    }
-    return 0;
+// Tab moves the focus without telling anyone; follow it so the focused control stays in view.
+void CALLBACK FocusFollow(HWINEVENTHOOK, DWORD, HWND hwnd, LONG id, LONG, DWORD, DWORD) {
+    if (g_state && g_state->laid_out && id == OBJID_CLIENT) ScrollIntoView(g_state, hwnd);
 }
 
 }  // namespace
@@ -446,10 +639,21 @@ bool EditDisplayItems(HINSTANCE instance, HWND owner, const wchar_t* title, Item
 
 void Show(HINSTANCE instance, HWND owner, const Settings& current, bool start_with_windows, Page start_page,
           const ApplyFn& apply) {
-    if (g_sheet && IsWindow(g_sheet)) {
-        PropSheet_SetCurSel(g_sheet, nullptr, start_page);
-        SetForegroundWindow(g_sheet);
+    if (g_state && g_state->host && IsWindow(g_state->host)) {  // already open: go to that section
+        ScrollTo(g_state, g_state->section_y[start_page]);
+        SetForegroundWindow(g_state->host);
         return;
+    }
+    static bool registered = false;
+    if (!registered) {
+        WNDCLASSEXW wc = {};
+        wc.cbSize = sizeof(wc);
+        wc.lpfnWndProc = &ScrollProc;
+        wc.hInstance = instance;
+        wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
+        wc.hbrBackground = GetSysColorBrush(COLOR_3DFACE);
+        wc.lpszClassName = kScrollClass;
+        registered = RegisterClassExW(&wc) != 0;
     }
 
     SheetState state;
@@ -457,33 +661,13 @@ void Show(HINSTANCE instance, HWND owner, const Settings& current, bool start_wi
     state.working = current;
     state.startup = start_with_windows;
     state.apply = &apply;
-
-    PageCtx ctx[3] = {{&state, kPageMain}, {&state, kPageTaskbar}, {&state, kPageGeneral}};
-    const int dialogs[3] = {IDD_PAGE_MAIN, IDD_PAGE_TASKBAR, IDD_PAGE_GENERAL};
-    PROPSHEETPAGEW pages[3] = {};
-    for (int i = 0; i < 3; ++i) {
-        pages[i].dwSize = sizeof(PROPSHEETPAGEW);
-        pages[i].hInstance = instance;
-        pages[i].pszTemplate = MAKEINTRESOURCEW(dialogs[i]);
-        pages[i].pfnDlgProc = &PageProc;
-        pages[i].lParam = reinterpret_cast<LPARAM>(&ctx[i]);
-    }
-
-    PROPSHEETHEADERW header = {};
-    header.dwSize = sizeof(header);
-    header.dwFlags = PSH_PROPSHEETPAGE | PSH_NOCONTEXTHELP | PSH_USEHICON | PSH_USECALLBACK;
-    header.hwndParent = owner;
-    header.hInstance = instance;
-    header.hIcon = LoadIconW(instance, MAKEINTRESOURCEW(IDI_APP));
-    header.pszCaption = L"Option Settings";
-    header.nPages = 3;
-    header.nStartPage = start_page;
-    header.ppsp = pages;
-    header.pfnCallback = &SheetCallback;
-    PropertySheetW(&header);
-    g_sheet = nullptr;
-    if (g_tab_images) ImageList_Destroy(g_tab_images);
-    g_tab_images = nullptr;
+    state.start_page = start_page;
+    HWINEVENTHOOK hook = SetWinEventHook(EVENT_OBJECT_FOCUS, EVENT_OBJECT_FOCUS, nullptr, &FocusFollow,
+                                         GetCurrentProcessId(), GetCurrentThreadId(), WINEVENT_OUTOFCONTEXT);
+    if (DialogBoxParamW(instance, MAKEINTRESOURCEW(IDD_OPTIONS), owner, &HostProc, reinterpret_cast<LPARAM>(&state)) == -1)
+        AppendAppLog(L"options: couldn't open the window (error " + std::to_wstring(GetLastError()) + L")");
+    if (hook) UnhookWinEvent(hook);
+    g_state = nullptr;
 }
 
 }  // namespace options

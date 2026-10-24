@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#141414">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Claude Usage">
+  <title>Claude Usage</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="icon" href="/icons/icon-192.png">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <main>
+    <header>
+      <img src="/icons/icon-192.png" alt="" width="28" height="28">
+      <h1>Claude Usage</h1>
+    </header>
+
+    <!-- Shown in Safari on iPhone until the app is on the Home Screen -->
+    <section id="install" class="card" hidden>
+      <h2>Add to Home Screen</h2>
+      <p>iPhone notifications only work from the installed app.</p>
+      <ol>
+        <li>Tap the <strong>Share</strong> button in Safari.</li>
+        <li>Choose <strong>Add to Home Screen</strong>, then <strong>Add</strong>.</li>
+        <li>Open <strong>Claude Usage</strong> from your Home Screen.</li>
+      </ol>
+    </section>
+
+    <section id="pair" class="card" hidden>
+      <h2>Pair with your PC</h2>
+      <p>On your PC run <code>push\pair.ps1</code> and enter the code it shows.</p>
+      <form id="pair-form" autocomplete="off">
+        <input id="pair-code" inputmode="text" autocapitalize="characters" spellcheck="false"
+               maxlength="9" placeholder="ABCD-EFGH" aria-label="Pairing code" required>
+        <button type="submit" class="primary">Pair</button>
+      </form>
+      <p id="pair-error" class="error" role="alert" hidden></p>
+    </section>
+
+    <section id="dashboard" hidden>
+      <div class="card limit" id="limit-five_hour">
+        <div class="row"><span class="label">Session (5h)</span><span class="value">--</span></div>
+        <div class="bar"><div class="fill"></div></div>
+        <div class="reset muted">--</div>
+      </div>
+      <div class="card limit" id="limit-seven_day">
+        <div class="row"><span class="label">Weekly (7d)</span><span class="value">--</span></div>
+        <div class="bar"><div class="fill"></div></div>
+        <div class="reset muted">--</div>
+      </div>
+
+      <div class="card">
+        <div class="row"><span>PC monitor</span><span id="monitor-status" class="muted">--</span></div>
+        <div class="row"><span>Notifications</span><span id="notify-status" class="muted">--</span></div>
+        <label class="row toggle"><span>5-hour reset alerts</span><input type="checkbox" id="pref-five_hour_reset"></label>
+        <label class="row toggle"><span>Weekly reset alerts</span><input type="checkbox" id="pref-weekly_reset"></label>
+        <label class="row toggle"><span>Account switch alerts</span><input type="checkbox" id="pref-account_switch"></label>
+      </div>
+
+      <button id="enable" class="primary" type="button">Enable Notifications</button>
+      <button id="test" class="secondary" type="button">Send Test Notification</button>
+      <p id="message" class="muted center" role="status"></p>
+      <button id="unpair" class="link" type="button">Unpair this iPhone</button>
+    </section>
+  </main>
+</body>
+</html>

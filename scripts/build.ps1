@@ -46,10 +46,11 @@ if ($Debug) { $flags += @('-O0', '-g') } else { $flags += @('-O2', '-s') }
 
 Write-Host 'Building ClaudeUsageMonitor.exe...'
 $appSources = 'main.cpp', 'TaskbarWidget.cpp', 'MainWindow.cpp', 'OptionsDialog.cpp',
-    'Canvas.cpp', 'UsageView.cpp', 'UsagePoller.cpp', 'UsageClient.cpp', 'UsageIcon.cpp', 'Settings.cpp' |
+    'Canvas.cpp', 'UsageView.cpp', 'UsagePoller.cpp', 'UsageClient.cpp', 'UsageIcon.cpp', 'Settings.cpp',
+    'AppFiles.cpp', 'ResetDetector.cpp', 'PushBridge.cpp', 'Accounts.cpp', 'PromptStats.cpp', 'ResetGrants.cpp' |
     ForEach-Object { Join-Path $src $_ }
 & $zig c++ @flags '-Wl,--subsystem,windows' -o (Join-Path $out 'ClaudeUsageMonitor.exe') @appSources (Join-Path $res 'app.rc') `
-    -lwinhttp -lshell32 -luser32 -lgdi32 -lcomctl32 -lcomdlg32 -ladvapi32 -lkernel32
+    -lwinhttp -lshell32 -luser32 -lgdi32 -lcomctl32 -lcomdlg32 -ladvapi32 -lkernel32 -lole32 -loleaut32
 if ($LASTEXITCODE -ne 0) { throw 'App build failed' }
 
 Write-Host 'Building claude-usage.exe...'
@@ -57,6 +58,10 @@ Write-Host 'Building claude-usage.exe...'
     (Join-Path $src 'cli.cpp') (Join-Path $src 'UsageClient.cpp') `
     -lwinhttp -lkernel32
 if ($LASTEXITCODE -ne 0) { throw 'CLI build failed' }
+
+Write-Host 'Building claude-usage-statusline.exe...'
+& $zig c++ @flags -o (Join-Path $out 'claude-usage-statusline.exe') (Join-Path $src 'statusline.cpp') -lkernel32
+if ($LASTEXITCODE -ne 0) { throw 'Status line build failed' }
 
 Get-ChildItem $out -Include *.lib, *.pdb -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
 Write-Host "Done -> $out"

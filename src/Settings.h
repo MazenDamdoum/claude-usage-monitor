@@ -25,6 +25,7 @@ struct WindowLook {
     COLORREF background_color = RGB(0, 0, 0);
     bool show_reset = true;
     bool show_bars = false;
+    bool bar_quarters = true;  // usage bars cut into four, to read 25/50/75/100% at a glance
     bool percent_space = true;
     bool hide_percent = false;
     bool tooltip = true;
@@ -33,12 +34,19 @@ struct WindowLook {
 
 struct Settings {
     // General
-    int poll_seconds = 60;
+    int poll_seconds = 60;          // interval while Claude Code is idle
+    bool live = true;               // check as fast as allowed while Claude Code works
     std::wstring credentials_path;  // empty = Claude Code default location
     int warn_percent = 80;
     int critical_percent = 95;
     bool notify = true;
     bool show_tray_icon = true;
+    bool phone_notifications = false;  // forward reset events to the push server (push/)
+    bool accounts_enabled = true;      // show every claude-swap account
+    bool auto_switch = true;           // switch accounts when the active one runs low
+    int auto_switch_percent = 95;      // ...at this 5h or weekly usage
+    std::wstring cswap_path;           // empty = find cswap.exe automatically
+    std::wstring your_name;            // how account owners see you in their alerts ("Nayef started using...")
 
     // Taskbar window
     bool taskbar_visible = true;
@@ -47,6 +55,16 @@ struct Settings {
     bool taskbar_auto_colors = true;
     bool taskbar_right_align = true;
     bool taskbar_horizontal = false;
+    bool taskbar_tokens = true;  // the live token-speed column (Display Settings > Token speed)
+    bool taskbar_token_pile = false;  // count tokens up (a running total, like Claude Code) instead of per second
+    bool taskbar_blossom = true;      // Claude's spinner beside the token speed
+    bool taskbar_switch_glow = true;  // the account's name glows green once a switch to it is confirmed
+    bool taskbar_active_first = true; // the account in use comes first (the accounts swap places)
+    bool taskbar_dim_standby = true;  // accounts not in use are drawn a little dimmer
+    bool taskbar_long_unit = false;   // "tokens/s" instead of "tok/s"
+    bool taskbar_check_timer = true;  // the ring at the far right: time to the next usage check
+    bool taskbar_fit = true;          // drop detail to fit the taskbar's space (off: always everything)
+    bool taskbar_collapsed = false;   // only the blossom, at the far right (clicking it toggles this)
     int taskbar_offset_x = 0;
 
     // Main window

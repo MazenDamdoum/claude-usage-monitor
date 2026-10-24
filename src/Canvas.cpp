@@ -113,6 +113,41 @@ void Canvas::Fill(RECT r, COLORREF color, unsigned alpha) {
         for (int x = r.left; x < r.right; ++x) Blend(px_[y * w_ + x], color, alpha);
 }
 
+void Canvas::Bar(RECT track, double fraction, int radius, COLORREF track_color, unsigned track_alpha,
+                 COLORREF fill_color, unsigned fill_alpha, bool quarters, int gap, double green_from) {
+    const int w = track.right - track.left;
+    if (w <= 0) return;
+    const int pieces = quarters && w >= 16 ? 4 : 1;
+    fraction = std::min(1.0, std::max(0.0, fraction));
+    const int fill_to = track.left + static_cast<int>(w * fraction + 0.5);
+    for (int i = 0; i < pieces; ++i) {
+        RECT seg = track;
+        seg.left = track.left + w * i / pieces;
+        seg.right = track.left + w * (i + 1) / pieces - (i + 1 < pieces ? gap : 0);
+        if (seg.right <= seg.left) continue;
+        int r = std::min<int>(radius, (seg.right - seg.left) / 2);
+        if (r > 0) FillRounded(seg, r, track_color, track_alpha);
+        else Fill(seg, track_color, track_alpha);
+        if (green_from >= 0) {  // the freed reserve: green from there (or what's used, if more) to the end
+            RECT g = seg;
+            g.left = std::max<LONG>(seg.left, track.left + static_cast<LONG>(w * std::max(green_from, fraction) + 0.5));
+            if (g.right > g.left) {
+                if (r > 0) FillRounded(g, std::min<int>(r, (g.right - g.left) / 2), RGB(52, 199, 89), 235);
+                else Fill(g, RGB(52, 199, 89), 235);
+            }
+        }
+        if (fraction <= 0 || fill_to <= seg.left) continue;
+        RECT part = seg;
+        part.right = std::min<LONG>(seg.right, fill_to);
+        if (r > 0) {
+            part.right = std::max<LONG>(part.right, std::min<LONG>(seg.right, part.left + 2 * r));  // a dot, not a sliver
+            FillRounded(part, r, fill_color, fill_alpha);
+        } else {
+            Fill(part, fill_color, fill_alpha);
+        }
+    }
+}
+
 void Canvas::FillRounded(RECT r, int radius, COLORREF color, unsigned alpha) {
     RECT c = Clip(r, w_, h_);
     double rad = radius;
@@ -125,6 +160,34 @@ void Canvas::FillRounded(RECT r, int radius, COLORREF color, unsigned alpha) {
             double cover = std::min(1.0, std::max(0.0, rad + 0.5 - d));
             if (rad <= 0) cover = 1.0;
             Blend(px_[y * w_ + x], color, static_cast<unsigned>(alpha * cover + 0.5));
+        }
+    }
+}
+
+void Canvas::Arc(double cx, double cy, double radius, double thickness, double start, double sweep, COLORREF color,
+                 unsigned alpha) {
+    if (sweep <= 0) return;
+    const double two_pi = 6.283185307179586, half = thickness / 2;
+    const bool whole = sweep >= 1;
+    const double a0 = start * two_pi, span = std::min(sweep, 1.0) * two_pi;
+    const double e0x = cx + radius * std::sin(a0), e0y = cy - radius * std::cos(a0);
+    const double e1x = cx + radius * std::sin(a0 + span), e1y = cy - radius * std::cos(a0 + span);
+    auto inside = [&](double x, double y) {
+        const double dx = x - cx, dy = y - cy;
+        if (std::fabs(std::hypot(dx, dy) - radius) <= half) {
+            if (whole) return true;
+            double a = std::atan2(dx, -dy);  // clockwise from 12 o'clock
+            if (std::fmod(a - a0 + 3 * two_pi, two_pi) <= span) return true;
+        }
+        return !whole && (std::hypot(x - e0x, y - e0y) <= half || std::hypot(x - e1x, y - e1y) <= half);
+    };
+    const int reach = static_cast<int>(std::ceil(radius + half)) + 1;
+    for (int y = std::max(0, static_cast<int>(cy) - reach); y < std::min(h_, static_cast<int>(cy) + reach + 1); ++y) {
+        for (int x = std::max(0, static_cast<int>(cx) - reach); x < std::min(w_, static_cast<int>(cx) + reach + 1); ++x) {
+            int hits = 0;  // 4 x 4 samples a pixel: smooth edges
+            for (int sy = 0; sy < 4; ++sy)
+                for (int sx = 0; sx < 4; ++sx) hits += inside(x + (sx + 0.5) / 4, y + (sy + 0.5) / 4);
+            if (hits) Blend(px_[y * w_ + x], color, alpha * hits / 16);
         }
     }
 }
@@ -180,6 +243,127 @@ HICON Canvas::ToIcon() {
     DeleteObject(mask);
     SelectObject(dc_, bmp_);
     return icon;
+}
+
+void Canvas::Draw(const Sprite& s, int x, int y, COLORREF color, unsigned alpha) {
+    for (int sy = 0; sy < s.h; ++sy) {
+        int py = y + sy;
+        if (py < 0 || py >= h_) continue;
+        for (int sx = 0; sx < s.w; ++sx) {
+            int px = x + sx;
+            unsigned cover = s.cover[sy * s.w + sx];
+            if (px < 0 || px >= w_ || !cover) continue;
+            Blend(px_[py * w_ + px], color, cover * alpha / 255);
+        }
+    }
+}
+
+void Canvas::DrawRotated(const Sprite& s, double cx, double cy, double angle, COLORREF color, unsigned alpha) {
+    const double c = std::cos(angle), sn = std::sin(angle), half = s.w / 2.0;
+    const int reach = static_cast<int>(std::ceil(half * 1.4143)) + 1;
+    auto cover = [&](int x, int y) -> double {
+        return x < 0 || y < 0 || x >= s.w || y >= s.h ? 0.0 : s.cover[y * s.w + x];
+    };
+    for (int y = static_cast<int>(std::floor(cy)) - reach; y <= static_cast<int>(std::ceil(cy)) + reach; ++y) {
+        if (y < 0 || y >= h_) continue;
+        for (int x = static_cast<int>(std::floor(cx)) - reach; x <= static_cast<int>(std::ceil(cx)) + reach; ++x) {
+            if (x < 0 || x >= w_) continue;
+            const double dx = x + 0.5 - cx, dy = y + 0.5 - cy;
+            const double sx = c * dx + sn * dy + half - 0.5, sy = -sn * dx + c * dy + half - 0.5;  // turned back
+            const int x0 = static_cast<int>(std::floor(sx)), y0 = static_cast<int>(std::floor(sy));
+            const double fx = sx - x0, fy = sy - y0;
+            const double v = cover(x0, y0) * (1 - fx) * (1 - fy) + cover(x0 + 1, y0) * fx * (1 - fy) +
+                             cover(x0, y0 + 1) * (1 - fx) * fy + cover(x0 + 1, y0 + 1) * fx * fy;
+            if (v >= 1) Blend(px_[y * w_ + x], color, static_cast<unsigned>(v * alpha / 255 + 0.5));
+        }
+    }
+}
+
+void Canvas::Compose(const Canvas& src, int src_x, unsigned alpha) {
+    if (!alpha) return;
+    for (int y = 0; y < std::min(h_, src.h_); ++y) {
+        for (int x = 0; x < w_; ++x) {
+            const int sx = x + src_x;
+            if (sx < 0 || sx >= src.w_) continue;
+            const uint32_t s = src.px_[y * src.w_ + sx];
+            const unsigned sa = (s >> 24) * alpha / 255;
+            if (!sa) continue;
+            const unsigned sr = ((s >> 16) & 0xFF) * alpha / 255, sg = ((s >> 8) & 0xFF) * alpha / 255,
+                           sb = (s & 0xFF) * alpha / 255;
+            uint32_t& d = px_[y * w_ + x];
+            const unsigned inv = 255 - sa;
+            d = ((sa + (d >> 24) * inv / 255) << 24) | ((sr + ((d >> 16) & 0xFF) * inv / 255) << 16) |
+                ((sg + ((d >> 8) & 0xFF) * inv / 255) << 8) | (sb + (d & 0xFF) * inv / 255);
+        }
+    }
+}
+
+Sprite CenteredGlyph(const std::wstring& font_name, int pixel_height, wchar_t ch, int box) {
+    const int k = 4;  // supersampling
+    Sprite out;
+    out.w = out.h = box;
+    out.cover.assign(static_cast<size_t>(box) * box, 0);
+    HFONT font = CreateFontW(-pixel_height * k, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_TT_PRECIS,
+                             CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, DEFAULT_PITCH, font_name.c_str());
+    HDC dc = CreateCompatibleDC(nullptr);
+    HGDIOBJ old_font = SelectObject(dc, font);
+    TEXTMETRICW tm = {};
+    GetTextMetricsW(dc, &tm);
+    SIZE size = {};
+    GetTextExtentPoint32W(dc, &ch, 1, &size);
+    const int margin = tm.tmHeight / 2;
+    const int bw = size.cx + 2 * margin, bh = tm.tmHeight + 2 * margin;
+    BITMAPINFO bi = {};
+    bi.bmiHeader.biSize = sizeof(bi.bmiHeader);
+    bi.bmiHeader.biWidth = bw;
+    bi.bmiHeader.biHeight = -bh;
+    bi.bmiHeader.biPlanes = 1;
+    bi.bmiHeader.biBitCount = 32;
+    void* bits = nullptr;
+    HBITMAP bmp = CreateDIBSection(dc, &bi, DIB_RGB_COLORS, &bits, nullptr, 0);
+    if (bmp && bits) {
+        HGDIOBJ old_bmp = SelectObject(dc, bmp);
+        std::fill_n(static_cast<uint32_t*>(bits), static_cast<size_t>(bw) * bh, 0u);
+        SetTextColor(dc, RGB(255, 255, 255));
+        SetBkMode(dc, TRANSPARENT);
+        TextOutW(dc, margin, margin, &ch, 1);
+        GdiFlush();
+        const uint32_t* p = static_cast<const uint32_t*>(bits);
+        auto at = [&](int x, int y) -> unsigned {
+            if (x < 0 || y < 0 || x >= bw || y >= bh) return 0;
+            uint32_t v = p[y * bw + x];
+            return std::max({v & 0xFF, (v >> 8) & 0xFF, (v >> 16) & 0xFF});
+        };
+        int minx = bw, maxx = -1, miny = bh, maxy = -1;
+        for (int y = 0; y < bh; ++y)
+            for (int x = 0; x < bw; ++x)
+                if (at(x, y)) {
+                    minx = std::min(minx, x);
+                    maxx = std::max(maxx, x);
+                    miny = std::min(miny, y);
+                    maxy = std::max(maxy, y);
+                }
+        if (maxx >= 0) {
+            out.ink_w = (maxx - minx + 1) / static_cast<double>(k);
+            out.ink_h = (maxy - miny + 1) / static_cast<double>(k);
+            // The ink's middle lands on the sprite's middle.
+            const int ox = static_cast<int>(std::lround((minx + maxx + 1) / 2.0 - box * k / 2.0));
+            const int oy = static_cast<int>(std::lround((miny + maxy + 1) / 2.0 - box * k / 2.0));
+            for (int fy = 0; fy < box; ++fy)
+                for (int fx = 0; fx < box; ++fx) {
+                    unsigned sum = 0;
+                    for (int j = 0; j < k; ++j)
+                        for (int i = 0; i < k; ++i) sum += at(ox + fx * k + i, oy + fy * k + j);
+                    out.cover[fy * box + fx] = static_cast<uint8_t>(sum / (k * k));
+                }
+        }
+        SelectObject(dc, old_bmp);
+        DeleteObject(bmp);
+    }
+    SelectObject(dc, old_font);
+    DeleteObject(font);
+    DeleteDC(dc);
+    return out;
 }
 
 HFONT CreateUiFont(const std::wstring& name, int size_pt, bool bold, int dpi) {

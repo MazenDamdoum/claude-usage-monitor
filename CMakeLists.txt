@@ -14,7 +14,8 @@ target_link_libraries(usage_client PUBLIC winhttp)
 
 add_executable(ClaudeUsageMonitor WIN32
   src/main.cpp src/TaskbarWidget.cpp src/MainWindow.cpp src/OptionsDialog.cpp
-  src/Canvas.cpp src/UsageView.cpp src/UsagePoller.cpp src/UsageIcon.cpp src/Settings.cpp res/app.rc)
+  src/Canvas.cpp src/UsageView.cpp src/UsagePoller.cpp src/UsageIcon.cpp src/Settings.cpp
+  src/AppFiles.cpp src/ResetDetector.cpp src/PushBridge.cpp src/Accounts.cpp src/PromptStats.cpp src/ResetGrants.cpp res/app.rc)
 target_link_libraries(ClaudeUsageMonitor PRIVATE usage_client shell32 user32 gdi32 comctl32 comdlg32 advapi32)
 if(MSVC)
   target_link_options(ClaudeUsageMonitor PRIVATE /MANIFEST:NO)  # manifest comes from app.rc

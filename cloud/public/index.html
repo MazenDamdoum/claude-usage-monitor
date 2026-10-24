@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#141414">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Claude Usage">
+  <title>Claude Usage</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="icon" href="/icons/icon-192.png">
+  <meta name="app-version" content="82">
+  <link rel="stylesheet" href="/styles.css?v=82">
+  <script src="/app.js?v=82" defer></script>
+</head>
+<body>
+  <!-- Portrait only: a phone held sideways sees this instead (iOS won't let a web app lock it). -->
+  <div id="rotate" aria-hidden="true"><img src="/icons/icon-192.png" alt="" width="56" height="56"><p>Turn your phone upright</p></div>
+  <main>
+    <header>
+      <img src="/icons/icon-192.png" alt="" width="28" height="28">
+      <h1 id="title">Claude Usage</h1>
+      <button id="refresh" class="check-timer" type="button" aria-label="Next usage update" title="Next usage update from Anthropic (tap to check now)">
+        <svg viewBox="0 0 36 36" width="30" height="30" aria-hidden="true"><circle class="check-track" cx="18" cy="18" r="14"/><circle id="check-ring" class="check-ring" cx="18" cy="18" r="14" pathLength="100"/></svg>
+        <span id="check-time">--</span>
+      </button>
+    </header>
+
+    <!-- Shown in Safari on iPhone until the app is on the Home Screen -->
+    <section id="install" class="card" hidden>
+      <h2>Add to Home Screen</h2>
+      <p>iPhone notifications only work from the installed app.</p>
+      <ol>
+        <li>Tap the <strong>Share</strong> button in Safari.</li>
+        <li>Choose <strong>Add to Home Screen</strong>, then <strong>Add</strong>.</li>
+        <li>Open <strong>Claude Usage</strong> from your Home Screen.<span id="install-auto"> It signs you in by itself.</span></li>
+      </ol>
+    </section>
+
+    <section id="pair" class="card" hidden>
+      <h2>Pair this iPhone</h2>
+      <p>Enter the code from <code>cloud\pair.ps1</code>, or the one your friend sent you.</p>
+      <form id="pair-form" autocomplete="off">
+        <input id="pair-code" inputmode="text" autocapitalize="characters" spellcheck="false"
+               maxlength="9" placeholder="ABCD-EFGH" aria-label="Pairing code" required>
+        <button type="submit" class="primary">Pair</button>
+      </form>
+      <p id="pair-error" class="error" role="alert" hidden></p>
+    </section>
+
+    <section id="dashboard" hidden>
+      <div class="card notify-banner" id="notify-banner" hidden>
+        <div class="row"><span>Notifications are off on this iPhone</span></div>
+        <p class="muted small" id="notify-banner-text"></p>
+        <button id="notify-banner-btn" class="primary" type="button">Turn on notifications</button>
+      </div>
+      <div class="card" id="tokens-card" hidden>
+        <div class="row"><span id="tokens-title">Live tokens</span><span class="muted small"><span class="light" id="tokens-light"></span><span id="tokens-age"></span></span></div>
+        <div class="tokens-now"><canvas id="tokens-blossom" aria-hidden="true"></canvas><span id="tokens-rate">0</span><span id="tokens-base" aria-hidden="true"></span><span class="muted" id="tokens-unit">tok/s</span><span class="muted" id="tokens-left"></span></div>
+        <canvas id="tokens-chart" aria-label="Tokens per second, last 5 minutes"></canvas>
+        <div class="row muted small"><span id="tokens-span">5 min ago</span><span id="tokens-caption">All Claude Code sessions</span><span>now</span></div>
+      </div>
+      <div class="card" id="pace-card" hidden>
+        <div class="row"><span>Suggested caps</span></div>
+        <div id="pace-list"></div>
+        <div id="auto-confirm" class="danger-banner" role="alertdialog" aria-labelledby="auto-title" hidden>
+          <strong id="auto-title">Auto-cap</strong>
+          <p id="auto-text"></p>
+          <div class="danger-actions">
+            <button id="auto-cancel" class="secondary" type="button">Cancel</button>
+            <button id="auto-yes" class="danger" type="button">Turn on</button>
+          </div>
+        </div>
+      </div>
+      <div class="card" id="extras-card" hidden>
+        <div class="row"><span>Limit resets</span><span class="muted small">shown only, claim in Claude Code</span></div>
+        <div id="extras-list"></div>
+      </div>
+      <div id="board" hidden></div>
+      <div class="card limit" id="limit-five_hour">
+        <div class="row"><span class="label">Session (5h)</span><span class="value">--</span></div>
+        <div class="bar"><div class="fill"></div><div class="cap-mark" hidden></div></div>
+        <div class="reset muted">--</div>
+      </div>
+      <div class="card limit" id="limit-seven_day">
+        <div class="row"><span class="label">Weekly (7d)</span><span class="value">--</span></div>
+        <div class="bar"><div class="fill"></div><div class="cap-mark" hidden></div></div>
+        <div class="reset muted">--</div>
+      </div>
+      <div class="card owner-only" id="owner-card">
+        <div class="row"><span id="owner-user">--</span><span id="owner-in-use" class="status">--</span></div>
+        <label class="row toggle"><span id="owner-allow-label">Allow use of my account</span><input type="checkbox" id="owner-allow"></label>
+        <div class="row"><span>5-hour cap</span><select id="cap-five_hour" aria-label="5-hour cap"></select></div>
+        <div class="row"><span>Weekly cap</span><select id="cap-weekly" aria-label="Weekly cap"></select></div>
+        <p class="muted small" id="owner-user-cap" hidden></p>
+        <div id="reserve-box" hidden>
+          <p class="small" id="reserve-text"></p>
+          <button id="reserve-btn" type="button"></button>
+        </div>
+      </div>
+      <div class="card" id="prompts-card" hidden>
+        <div class="row"><span>Opus prompts left</span><span class="muted small">estimate</span></div>
+        <div class="prompts">
+          <div><span class="count" id="prompts-low">--</span><span class="muted small">low effort</span></div>
+          <div><span class="count" id="prompts-medium">--</span><span class="muted small">medium</span></div>
+          <div><span class="count" id="prompts-high">--</span><span class="muted small">high</span></div>
+        </div>
+        <p class="muted small" id="prompts-note"></p>
+      </div>
+
+      <div class="card">
+        <div class="row"><span>PC</span><span id="monitor-status" class="muted">--</span></div>
+        <div class="row"><span>Notifications</span><span id="notify-status" class="muted">--</span></div>
+        <label class="row toggle user-only"><span>5-hour reset alerts</span><input type="checkbox" id="pref-five_hour_reset"></label>
+        <label class="row toggle user-only"><span>Weekly reset alerts</span><input type="checkbox" id="pref-weekly_reset"></label>
+        <label class="row toggle user-only"><span>Account switch alerts</span><input type="checkbox" id="pref-account_switch"></label>
+        <label class="row toggle user-only"><span>When a friend changes token cap</span><input type="checkbox" id="pref-access_changes"></label>
+        <label class="row toggle user-only"><span>When a friend frees their reserve</span><input type="checkbox" id="pref-reserve_released"></label>
+        <label class="row toggle owner-only"><span>Heads-up before they start</span><input type="checkbox" id="pref-heads_up"></label>
+        <label class="row toggle owner-only"><span>When they start or stop using it</span><input type="checkbox" id="pref-switch_alerts"></label>
+        <label class="row toggle owner-only"><span>When they cap their own use</span><input type="checkbox" id="pref-cap_changes"></label>
+        <label class="row toggle owner-only"><span>Reset alerts</span><input type="checkbox" id="pref-reset_alerts"></label>
+        <label class="row toggle owner-only"><span>Offer my reserve before a reset</span><input type="checkbox" id="pref-reserve_offer"></label>
+        <label class="row toggle owner-only"><span>When they ask for my reserve</span><input type="checkbox" id="pref-reserve_asks"></label>
+        <div class="row"><span>Usage alerts</span><span class="muted small">5-hour and weekly</span></div>
+        <div class="chips">
+          <label class="chip"><input type="checkbox" id="pref-usage_25"><span>25%</span></label>
+          <label class="chip"><input type="checkbox" id="pref-usage_50"><span>50%</span></label>
+          <label class="chip"><input type="checkbox" id="pref-usage_75"><span>75%</span></label>
+          <label class="chip"><input type="checkbox" id="pref-usage_85"><span>85%</span></label>
+          <label class="chip"><input type="checkbox" id="pref-usage_100"><span>Maxed</span></label>
+        </div>
+        <div class="row"><span>Reset reminders</span><span class="muted small">before it resets</span></div>
+        <div class="chips">
+          <label class="chip"><input type="checkbox" id="pref-remind_60"><span>1 h</span></label>
+          <label class="chip"><input type="checkbox" id="pref-remind_30"><span>30 min</span></label>
+          <label class="chip"><input type="checkbox" id="pref-remind_15"><span>15 min</span></label>
+          <label class="chip"><input type="checkbox" id="pref-remind_5"><span>5 min</span></label>
+        </div>
+      </div>
+
+      <button id="enable" class="primary" type="button">Enable Notifications</button>
+      <button id="test-push" class="secondary" type="button" hidden>Send a test notification</button>
+      <p id="message" class="muted center" role="status"></p>
+
+      <div class="card" id="widget-card">
+        <div class="row"><span>Widgets</span><span class="muted small">Home Screen &middot; Today &middot; Lock Screen</span></div>
+        <p class="muted small">Usage bars like this app: 5-hour in orange, the week in blue, with the quarters and caps.</p>
+        <div class="widget-previews" aria-hidden="true">
+          <img src="/widgets/small.png?v=6" alt=""><img src="/widgets/medium.png?v=6" alt="" class="wide">
+          <img src="/widgets/lock.png?v=6" alt="" class="wide">
+        </div>
+        <button id="widget-key" type="button">Set Up Widgets</button>
+        <div id="widget-key-out" hidden>
+          <p class="small" id="widget-copied">The widget script is copied.</p>
+          <textarea id="widget-script" class="key" rows="4" readonly hidden></textarea>
+          <ol class="small steps">
+            <li>Get <a href="https://apps.apple.com/app/scriptable/id1405459188" target="_blank" rel="noopener">Scriptable</a> from the App Store (free).</li>
+            <li>Open Scriptable, tap <b>+</b>, paste, then tap the title and name it <b>Claude Usage</b>.</li>
+            <li><b>Home Screen or Today View:</b> touch and hold, tap <b>Edit</b> &rarr; <b>Add Widget</b>, pick <b>Scriptable</b> and a size. Tap the new widget and choose <b>Claude Usage</b> as the Script.</li>
+            <li><b>Lock Screen:</b> touch and hold it, tap <b>Customize</b> &rarr; <b>Lock Screen</b>, tap the widget row and pick <b>Scriptable</b>. Add the <b>rectangle</b> (or the circle, or the one-line widget; each is added on its own). Tap the added widget and choose <b>Claude Usage</b>.</li>
+            <li id="widget-param-step">Your widgets show <span id="widget-names">every account</span> together. To pin one widget to one account, set its <b>Parameter</b> to that name.</li>
+          </ol>
+          <button id="widget-key-copy" class="secondary" type="button">Copy Script Again</button>
+        </div>
+      </div>
+      <button id="unpair" class="link" type="button">Unpair this iPhone</button>
+      <div id="unpair-confirm" class="danger-banner" role="alertdialog" aria-labelledby="unpair-title" hidden>
+        <strong id="unpair-title">Unpair this iPhone?</strong>
+        <p>It stops getting alerts and usage. To use it again you'll need a new link or pairing code.</p>
+        <div class="danger-actions">
+          <button id="unpair-cancel" class="secondary" type="button">Cancel</button>
+          <button id="unpair-yes" class="danger" type="button">Unpair</button>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

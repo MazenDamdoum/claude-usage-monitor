@@ -1,0 +1,25 @@
+name = "claude-usage-cloud"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+workers_dev = true
+
+# The phone app. Every request goes through the Worker first so security
+# headers are added to static files too.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = true
+
+[[durable_objects.bindings]]
+name = "HUB"
+class_name = "Hub"
+
+# SQLite-backed Durable Objects are available on the Workers free plan.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Hub"]
+
+# Secrets (set by setup.ps1, never committed):
+#   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, INGEST_TOKEN
+# Optional var:
+#   VAPID_SUBJECT  (mailto: or https: contact for the push services)

@@ -11,9 +11,23 @@ IDI_APP ICON "app.ico"
 #define SPIN(id) CONTROL "", id, UPDOWN_CLASS, UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_NOTHOUSANDS, 0, 0, 0, 0
 
 /////////////////////////////////////////////////////////////////////////////
+// Options: one scrolling window holding the three pages below, one after another
+
+IDD_OPTIONS DIALOGEX 0, 0, 306, 340
+STYLE DS_SETFONT | DS_SHELLFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Option Settings"
+FONT 9, "Segoe UI", 400, 0, 0x1
+BEGIN
+    CONTROL         "", IDC_OPT_SCROLL, "ClaudeUsageMonitor.OptionsScroll", WS_CHILD | WS_VISIBLE | WS_VSCROLL, 0, 0, 306, 316, WS_EX_CONTROLPARENT
+    DEFPUSHBUTTON   "OK", IDOK, 140, 321, 50, 14
+    PUSHBUTTON      "Cancel", IDCANCEL, 194, 321, 50, 14
+    PUSHBUTTON      "Apply", IDC_OPT_APPLY, 248, 321, 50, 14, WS_DISABLED
+END
+
+/////////////////////////////////////////////////////////////////////////////
 // Options: Main Window Settings
 
-IDD_PAGE_MAIN DIALOGEX 0, 0, 290, 238
+IDD_PAGE_MAIN DIALOGEX 0, 0, 290, 242
 STYLE DS_SETFONT | DS_SHELLFONT | WS_CHILD | WS_CAPTION
 CAPTION "Main Window Settings"
 FONT 9, "Segoe UI", 400, 0, 0x1
@@ -44,6 +58,7 @@ BEGIN
     CHECK("Show reset countdown", IDC_SHOW_RESET, 15, 125, 125)
     CHECK("Show usage bars", IDC_SHOW_BARS, 15, 138, 125)
     CHECK("Show mouse tooltip", IDC_TOOLTIP, 15, 151, 125)
+    CHECK("Split usage bars into quarters", IDC_BAR_QUARTERS, 148, 151, 132)
     CHECK("Separate value and unit with space", IDC_SPACE, 148, 125, 132)
     CHECK("Don't show percent", IDC_HIDE_PERCENT, 148, 138, 132)
 
@@ -58,7 +73,7 @@ END
 /////////////////////////////////////////////////////////////////////////////
 // Options: Taskbar Window Settings
 
-IDD_PAGE_TASKBAR DIALOGEX 0, 0, 290, 238
+IDD_PAGE_TASKBAR DIALOGEX 0, 0, 290, 328
 STYLE DS_SETFONT | DS_SHELLFONT | WS_CHILD | WS_CAPTION
 CAPTION "Taskbar Window Settings"
 FONT 9, "Segoe UI", 400, 0, 0x1
@@ -91,18 +106,30 @@ BEGIN
     CHECK("Separate value and unit with space", IDC_SPACE, 148, 139, 132)
     CHECK("Don't show percent", IDC_HIDE_PERCENT, 148, 152, 132)
     CHECK("Show mouse tooltip", IDC_TOOLTIP, 148, 165, 132)
+    CHECK("Split usage bars into quarters", IDC_BAR_QUARTERS, 148, 178, 132)
 
-    GROUPBOX        "Position", -1, 7, 195, 276, 34
-    LTEXT           "Horizontal offset:", -1, 15, 211, 60, 8
-    EDITTEXT        IDC_OFFSET, 78, 209, 40, 13
+    GROUPBOX        "Tokens and Effects", -1, 7, 195, 276, 86
+    CHECK("Show token speed", IDC_TOKENS_SHOW, 15, 209, 125)
+    CHECK("Count tokens up instead of per second", IDC_TOKENS_PILE, 148, 209, 132)
+    CHECK("Show Claude's blossom spinner", IDC_BLOSSOM, 15, 222, 125)
+    CHECK("Green glow on a confirmed switch", IDC_SWITCH_GLOW, 148, 222, 132)
+    CHECK("Account in use comes first", IDC_ACTIVE_FIRST, 15, 235, 125)
+    CHECK("Dim accounts not in use", IDC_DIM_STANDBY, 148, 235, 132)
+    CHECK("Write tokens/s instead of tok/s", IDC_LONG_UNIT, 15, 248, 125)
+    CHECK("Next usage check timer", IDC_CHECK_TIMER, 148, 248, 132)
+    CHECK("Fit to the taskbar's space (off: always show everything)", IDC_FIT, 15, 261, 265)
+
+    GROUPBOX        "Position", -1, 7, 287, 276, 34
+    LTEXT           "Horizontal offset:", -1, 15, 303, 60, 8
+    EDITTEXT        IDC_OFFSET, 78, 301, 40, 13
     SPIN(IDC_OFFSET_SPIN)
-    LTEXT           "pixels (negative moves it left)", -1, 124, 211, 150, 8
+    LTEXT           "pixels (negative moves it left)", -1, 124, 303, 150, 8
 END
 
 /////////////////////////////////////////////////////////////////////////////
 // Options: General Settings
 
-IDD_PAGE_GENERAL DIALOGEX 0, 0, 290, 238
+IDD_PAGE_GENERAL DIALOGEX 0, 0, 290, 334
 STYLE DS_SETFONT | DS_SHELLFONT | WS_CHILD | WS_CAPTION
 CAPTION "General Settings"
 FONT 9, "Segoe UI", 400, 0, 0x1
@@ -110,36 +137,48 @@ BEGIN
     GROUPBOX        "Startup", -1, 7, 7, 276, 30
     CHECK("Start with Windows", IDC_STARTUP, 15, 20, 200)
 
-    GROUPBOX        "Claude Account", -1, 7, 43, 276, 72
-    LTEXT           "Check usage every", -1, 15, 59, 64, 8
-    EDITTEXT        IDC_POLL, 80, 57, 40, 13, ES_NUMBER
+    GROUPBOX        "Claude Account", -1, 7, 43, 276, 86
+    CHECK("Live updates: check as often as allowed while Claude Code is working", IDC_LIVE, 15, 57, 262)
+    LTEXT           "Otherwise check every", -1, 15, 74, 78, 8
+    EDITTEXT        IDC_POLL, 94, 72, 40, 13, ES_NUMBER
     SPIN(IDC_POLL_SPIN)
-    LTEXT           "seconds (60 - 3600)", -1, 126, 59, 100, 8
-    LTEXT           "Login file:", -1, 15, 80, 36, 8
-    EDITTEXT        IDC_CRED, 54, 78, 166, 13, ES_AUTOHSCROLL
-    PUSHBUTTON      "Browse...", IDC_CRED_BROWSE, 224, 77, 52, 15
-    LTEXT           "Leave empty to use the login Claude Code saved on this PC.", -1, 54, 96, 222, 8
+    LTEXT           "seconds (60 - 3600)", -1, 140, 74, 100, 8
+    LTEXT           "Login file:", -1, 15, 94, 36, 8
+    EDITTEXT        IDC_CRED, 54, 92, 166, 13, ES_AUTOHSCROLL
+    PUSHBUTTON      "Browse...", IDC_CRED_BROWSE, 224, 91, 52, 15
+    LTEXT           "Leave empty to use the login Claude Code saved on this PC.", -1, 54, 110, 222, 8
 
-    GROUPBOX        "Alerts", -1, 7, 121, 276, 66
-    LTEXT           "Warning at", -1, 15, 137, 38, 8
-    EDITTEXT        IDC_WARN, 56, 135, 34, 13, ES_NUMBER
+    GROUPBOX        "Alerts", -1, 7, 135, 276, 66
+    LTEXT           "Warning at", -1, 15, 151, 38, 8
+    EDITTEXT        IDC_WARN, 56, 149, 34, 13, ES_NUMBER
     SPIN(IDC_WARN_SPIN)
-    LTEXT           "%", -1, 94, 137, 10, 8
-    LTEXT           "Critical at", -1, 120, 137, 36, 8
-    EDITTEXT        IDC_CRIT, 158, 135, 34, 13, ES_NUMBER
+    LTEXT           "%", -1, 94, 151, 10, 8
+    LTEXT           "Critical at", -1, 120, 151, 36, 8
+    EDITTEXT        IDC_CRIT, 158, 149, 34, 13, ES_NUMBER
     SPIN(IDC_CRIT_SPIN)
-    LTEXT           "%", -1, 196, 137, 10, 8
-    CHECK("Show a notification when a limit reaches these levels", IDC_NOTIFY, 15, 155, 262)
-    LTEXT           "Values turn amber at the warning level and red at the critical level.", -1, 15, 170, 262, 8
+    LTEXT           "%", -1, 196, 151, 10, 8
+    CHECK("Show a notification when a limit reaches these levels", IDC_NOTIFY, 15, 169, 262)
+    LTEXT           "Values turn amber at the warning level and red at the critical level.", -1, 15, 184, 262, 8
 
-    GROUPBOX        "Notification Area", -1, 7, 193, 276, 30
-    CHECK("Show notification area (tray) icon", IDC_TRAY, 15, 206, 200)
+    GROUPBOX        "Notification Area", -1, 7, 207, 276, 30
+    CHECK("Show notification area (tray) icon", IDC_TRAY, 15, 220, 200)
+
+    GROUPBOX        "Phone Notifications", -1, 7, 243, 276, 42
+    CHECK("Notify my iPhone / Apple Watch when a limit resets", IDC_PUSH, 15, 256, 262)
+    LTEXT           "Sends to the cloud relay (cloud\\) and/or local push server (push\\).", -1, 27, 270, 250, 8
+
+    GROUPBOX        "Accounts", -1, 7, 289, 276, 42
+    CHECK("Show all claude-swap accounts (cswap) in the taskbar and main window", IDC_ACCOUNTS, 15, 301, 262)
+    CHECK("Switch accounts automatically at", IDC_AUTO_SWITCH, 15, 316, 130)
+    EDITTEXT        IDC_AUTO_PCT, 146, 314, 30, 13, ES_NUMBER
+    SPIN(IDC_AUTO_PCT_SPIN)
+    LTEXT           "% (5-hour or weekly)", -1, 180, 316, 100, 8
 END
 
 /////////////////////////////////////////////////////////////////////////////
 // Display items
 
-IDD_DISPLAY_ITEMS DIALOGEX 0, 0, 230, 146
+IDD_DISPLAY_ITEMS DIALOGEX 0, 0, 230, 136
 STYLE DS_SETFONT | DS_SHELLFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Display Items"
 FONT 9, "Segoe UI", 400, 0, 0x1
@@ -155,9 +194,23 @@ BEGIN
     EDITTEXT        IDC_DI_LABEL0 + 2, 112, 72, 106, 13, ES_AUTOHSCROLL
     CHECK("Weekly Opus", IDC_DI_SHOW0 + 3, 12, 92, 96)
     EDITTEXT        IDC_DI_LABEL0 + 3, 112, 90, 106, 13, ES_AUTOHSCROLL
-    PUSHBUTTON      "Restore Defaults", IDC_DI_DEFAULTS, 10, 122, 66, 15
-    DEFPUSHBUTTON   "OK", IDOK, 118, 122, 50, 15
-    PUSHBUTTON      "Cancel", IDCANCEL, 172, 122, 50, 15
+    PUSHBUTTON      "Restore Defaults", IDC_DI_DEFAULTS, 10, 114, 66, 15
+    DEFPUSHBUTTON   "OK", IDOK, 118, 114, 50, 15
+    PUSHBUTTON      "Cancel", IDCANCEL, 172, 114, 50, 15
+END
+
+/////////////////////////////////////////////////////////////////////////////
+// Rename account
+
+IDD_RENAME DIALOGEX 0, 0, 220, 82
+STYLE DS_SETFONT | DS_SHELLFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Rename Account"
+FONT 9, "Segoe UI", 400, 0, 0x1
+BEGIN
+    LTEXT           "", IDC_RENAME_TEXT, 10, 8, 200, 18
+    EDITTEXT        IDC_RENAME_EDIT, 10, 30, 200, 14, ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "Rename", IDOK, 106, 58, 50, 15
+    PUSHBUTTON      "Cancel", IDCANCEL, 160, 58, 50, 15
 END
 
 /////////////////////////////////////////////////////////////////////////////
@@ -175,8 +228,8 @@ BEGIN
         BEGIN
             VALUE "FileDescription", "Claude Usage Monitor"
             VALUE "ProductName", "Claude Usage Monitor"
-            VALUE "FileVersion", "1.1.0"
-            VALUE "ProductVersion", "1.1.0"
+            VALUE "FileVersion", "1.2.0"
+            VALUE "ProductVersion", "1.2.0"
             VALUE "OriginalFilename", "ClaudeUsageMonitor.exe"
             VALUE "LegalCopyright", "MIT License"
         END
